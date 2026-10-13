@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "create-admin": "node scripts/create-admin.mjs",
+    "make-superadmin": "node scripts/make-superadmin.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

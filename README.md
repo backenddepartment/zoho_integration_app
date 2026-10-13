@@ -2,15 +2,16 @@
 
 A web portal that lets staff and external users create, view, edit and delete company files stored in Zoho WorkDrive, without each person needing a Zoho account. The server acts through one connected Zoho account and enforces its own permissions and audit log.
 
-**Status: Phase 1** (WorkDrive connection and indexing). See [Roadmap](#roadmap).
+**Status: Phases 1–3** (WorkDrive connection, users and permissions, file CRUD). See [Roadmap](#roadmap).
 
 ## Setup
 
 1. **Install:** `npm install`
 2. **Database:** create a Neon project and copy its pooled connection string.
 3. **Zoho app:** in the [Zoho API Console](https://api-console.zoho.com), add a **Server-based Application**:
-   - Homepage URL: your `APP_URL`
-   - Authorized Redirect URI: `${APP_URL}/api/zoho/callback` (e.g. `http://localhost:3000/api/zoho/callback`)
+   - Homepage URL: your main domain
+   - Authorized Redirect URIs (use ⊕ to add each): `<origin>/api/zoho/callback` for every origin in `APP_URL`, e.g.
+     `http://localhost:3000/api/zoho/callback`, `https://zoho-integration-app.vercel.app/api/zoho/callback`, `https://workdrive.getmeds.ph/api/zoho/callback`
    - Copy the Client ID and Client Secret.
 4. **Environment:** copy `.env.example` to `.env.local` and fill in every value. Generate the two secrets with:
    ```sh
@@ -18,9 +19,49 @@ A web portal that lets staff and external users create, view, edit and delete co
    ```
    Keep `TOKEN_ENCRYPTION_KEY` out of the database. It is what keeps the stored Zoho token unreadable.
 5. **Create tables:** `npm run db:push`
-6. **Run:** `npm run dev`, then open http://localhost:3000/admin and sign in with `ADMIN_PASSWORD`.
-7. **Connect Zoho:** click **Connect Zoho WorkDrive**. The account owner signs in to Zoho in that same browser tab and approves. They can sign in to `/admin` themselves to do it.
-8. **Index:** click **Scan WorkDrive now**. The scan walks every team folder the account belongs to, plus its My Folders. Refresh the page to watch progress, then browse the results.
+6. **First admin:** `npm run create-admin -- you@getmeds.ph "Your Name"`. It prints a temporary password.
+   You'll have to change it at first sign-in.
+7. **Run:** `npm run dev`, then open http://localhost:3000/login.
+8. **Connect Zoho:** click **Connect Zoho WorkDrive**. The account owner signs in to Zoho in that same browser tab and approves. They can sign in to `/admin` themselves to do it.
+9. **Index:** click **Scan WorkDrive now**. The scan walks every team folder the account belongs to, plus its My Folders. Refresh the page to watch progress, then browse the results.
+
+## Roles and permissions
+
+| Role | Can do |
+|---|---|
+| superadmin | Everything an admin can, plus **delete permanently** (including whole team folders) and managing other superadmins |
+| admin | Everything: every file, Users page, sharing, Zoho connection, scans, restoring deleted items |
+| staff | Only what is shared with them, up to the level granted |
+| external | Same as staff, but never more than **edit** (no delete or move) |
+
+Admins share a team folder, folder or file with a user from its page (**Sharing** panel). Access covers
+everything inside it. If a user has several grants, the highest level on the item or any folder above it applies.
+
+| Level | Allows |
+|---|---|
+| view | Browse, download, see versions |
+| edit | Also upload (or save a new version), create folders, rename |
+| manage | Also delete and move |
+
+**Deleting** renames the item in WorkDrive to `(Deleted by Jade Madigal) name`. If that name is
+taken, the date is added: `(Deleted by Jade Madigal 2026-10-13 1215) name`. Nothing is removed. The
+item, and everything inside it, disappears from every screen in the app. Admins find it under
+**Deleted items** and can **Restore** it. Only a superadmin can **Delete permanently**:
+- **Files and folders** are purged from WorkDrive.
+- **Team folders** need the exact name typed to confirm. Only a Zoho team admin can restore one, from
+  WorkDrive's Admin Console, within the retention period.
+
+**Who did what.** WorkDrive records every change under the connected Zoho account. The app keeps the
+real person in three places:
+- **The app's own log.** File lists show "Last change … by", and file pages show "Created by" and a
+  full Activity history.
+- **WorkDrive comments.** Each change also leaves a comment on the file, e.g. "Uploaded by Jade
+  Madigal (jade@…) via Getmeds Files". This needs the `WorkDrive.comments.CREATE` permission.
+- **Team folder descriptions.** New team folders get "Created by …" as their description.
+
+Make the first superadmin with `npm run make-superadmin -- you@getmeds.ph`. The account must already exist.
+
+Every action is recorded in `audit_log` under the person who did it. The admin WorkDrive page shows the latest 50.
 
 ## How it fits together
 
@@ -36,7 +77,11 @@ Browser → Next.js server (permissions, audit log) → Zoho WorkDrive API (boss
 | `src/lib/zoho/workdrive.ts` | WorkDrive client: list, metadata, download, upload/new version, rename, move, trash, versions |
 | `src/lib/sync/crawl.ts` | Indexes all team folders and My Folders into `wd_items` |
 | `src/db/schema.ts` | Tables: `zoho_connection`, `wd_roots`, `wd_items`, `sync_runs`, `audit_log` |
-| `src/app/admin` | Temporary admin UI: connect, scan, browse, download |
+| `src/lib/auth.ts`, `src/lib/password.ts` | Sign-in, database sessions, lockout after 5 failed attempts, scrypt hashing |
+| `src/lib/access.ts` | Permission checks (`authorize`), what each user starts from, index updates after changes |
+| `src/app/api/files/[id]/…` | CRUD API: read, rename, move, trash, create folder, upload, save content (with conflict copy), versions, download |
+| `src/app/files` | File browser and the admin-only Sharing panel |
+| `src/app/admin` | WorkDrive connection, scan, activity log; `admin/users` manages accounts |
 
 ### Zoho limits to keep in mind
 
@@ -48,7 +93,8 @@ Browser → Next.js server (permissions, audit log) → Zoho WorkDrive API (boss
 ## Roadmap
 
 1. ✅ WorkDrive connection and folder indexing
-2. User accounts (staff and external), roles, per-folder permissions
-3. File browser for users: create, view, edit, delete. Edits save as new versions, and deletes go to the trash.
+2. ✅ User accounts (staff and external), roles, per-folder permissions
+3. ✅ File browser for users: create, view, edit, delete. Edits save as new versions, and deletes go to the trash.
+   - Still to do: scans that resume across several short runs (for Vercel's time limit), and uploads over 4.5 MB on Vercel
 4. Word editing with a fork of WordCraft. On save, check whether the file changed since it was opened; if it did, save a copy instead of overwriting. Needs the Rust toolchain.
 5. Nightly backup, rate-limit tuning, then PdfCraft, GridCraft and DeckCraft

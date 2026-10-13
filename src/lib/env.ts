@@ -7,7 +7,12 @@ const base64Key = z
 
 const schema = z.object({
   DATABASE_URL: z.string().url(),
-  APP_URL: z.string().url(),
+  // One or more public origins this app is served from, comma-separated. Each one's
+  // /api/zoho/callback must be registered as a redirect URI in the Zoho API Console.
+  APP_URL: z
+    .string()
+    .transform((v) => v.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean))
+    .pipe(z.array(z.string().url()).min(1)),
   ZOHO_CLIENT_ID: z.string().min(1),
   ZOHO_CLIENT_SECRET: z.string().min(1),
   ZOHO_ACCOUNTS_URL: z.string().url().default("https://accounts.zoho.com"),
@@ -15,7 +20,6 @@ const schema = z.object({
   ZOHO_DOWNLOAD_URL: z.string().url().default("https://download.zoho.com/v1/workdrive"),
   TOKEN_ENCRYPTION_KEY: base64Key,
   SESSION_SECRET: z.string().min(32),
-  ADMIN_PASSWORD: z.string().min(12),
 });
 
 let cached: z.infer<typeof schema> | undefined;
@@ -31,4 +35,10 @@ export function env() {
     cached = parsed.data;
   }
   return cached;
+}
+
+/** The request's origin if it is one of APP_URL's origins, otherwise null. */
+export function allowedOrigin(requestUrl: URL): string | null {
+  const origin = requestUrl.origin;
+  return env().APP_URL.some((u) => new URL(u).origin === origin) ? origin : null;
 }

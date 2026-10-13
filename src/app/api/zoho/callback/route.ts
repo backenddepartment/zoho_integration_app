@@ -1,16 +1,19 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { adminGuard } from "@/lib/admin-session";
+import { isAdminRole } from "@/db";
+import { getCurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { safeEqual } from "@/lib/crypto";
-import { env } from "@/lib/env";
+import { allowedOrigin, env } from "@/lib/env";
 import { exchangeCode, saveConnection } from "@/lib/zoho/oauth";
 
 export async function GET(request: NextRequest) {
-  const denied = await adminGuard();
-  if (denied) return denied;
+  const user = await getCurrentUser();
+  if (!user || !isAdminRole(user.role) || user.mustChangePassword) return Response.json({ error: "Administrators only" }, { status: 403 });
 
-  const back = (status: string) => Response.redirect(`${env().APP_URL}/admin?zoho=${encodeURIComponent(status)}`, 302);
+  const origin = allowedOrigin(request.nextUrl);
+  if (!origin) return Response.json({ error: `${request.nextUrl.origin} is not listed in APP_URL` }, { status: 400 });
+  const back = (status: string) => Response.redirect(`${origin}/admin?zoho=${encodeURIComponent(status)}`, 302);
   const params = request.nextUrl.searchParams;
 
   const jar = await cookies();
@@ -28,7 +31,7 @@ export async function GET(request: NextRequest) {
   if (server && new URL(server).host !== new URL(env().ZOHO_ACCOUNTS_URL).host) return back("wrong_data_center");
 
   try {
-    const tokens = await exchangeCode(code);
+    const tokens = await exchangeCode(code, origin);
     // users/me needs a stored connection to authenticate, so ask Zoho directly with the fresh token.
     const res = await fetch(`${env().ZOHO_API_URL}/users/me`, {
       headers: { Authorization: `Zoho-oauthtoken ${tokens.accessToken}`, Accept: "application/vnd.api+json" },
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
       displayName: me.data.attributes.display_name ?? null,
       ...tokens,
     });
-    await audit("admin", "zoho.connect", null, { zuid: me.data.id, email: me.data.attributes.email_id });
+    await audit(user.email, "zoho.connect", null, { zuid: me.data.id, email: me.data.attributes.email_id });
     return back("connected");
   } catch (e) {
     console.error("Zoho connect failed", e);

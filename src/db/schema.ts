@@ -8,7 +8,10 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
+import { ROLES } from "./roles";
 
 /** The single Zoho account the app acts through (the boss's). One row, id = "default". */
 export const zohoConnection = pgTable("zoho_connection", {
@@ -82,4 +85,64 @@ export const auditLog = pgTable(
     detail: jsonb("detail"),
   },
   (t) => [index("audit_log_resource_idx").on(t.resourceId)],
+);
+
+// ---------- people and access ----------
+
+
+
+/** Portal accounts. None of these people need a Zoho account. */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role", { enum: ROLES }).notNull(),
+    active: boolean("active").notNull().default(true),
+    mustChangePassword: boolean("must_change_password").notNull().default(true),
+    failedLogins: integer("failed_logins").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+);
+
+/** Login sessions. The id is the SHA-256 of the cookie token, so a database leak can't be replayed. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+/** Permission levels, ordered: each includes everything below it. */
+export const LEVELS = { view: 1, edit: 2, manage: 3 } as const;
+export type LevelName = keyof typeof LEVELS;
+
+/**
+ * A user's access to a team folder, folder or file. A grant on a folder covers everything inside it;
+ * the user's effective level is the highest grant on the item or any ancestor.
+ */
+export const grants = pgTable(
+  "grants",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id").notNull(),
+    level: integer("level").notNull(),
+    grantedBy: uuid("granted_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("grants_user_resource_idx").on(t.userId, t.resourceId), index("grants_resource_idx").on(t.resourceId)],
 );

@@ -12,3 +12,4 @@ export function db() {
 }
 
 export * from "./schema";
+export * from "./roles";

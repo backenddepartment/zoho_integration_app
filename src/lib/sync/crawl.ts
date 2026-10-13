@@ -93,7 +93,7 @@ async function crawlRoot(root: WdRoot, runId: number, counts: { folders: number;
   }
 }
 
-async function upsert(rootId: string, parentId: string, items: WdFile[], runId: number) {
+export async function upsert(rootId: string, parentId: string, items: WdFile[], runId: number) {
   const rows = items.map((f) => ({
     id: f.id,
     rootId,

@@ -192,6 +192,37 @@ export const move = (id: string, parentId: string) => patchFile(id, { parent_id:
 export const trash = (id: string) => patchFile(id, { status: "51" });
 export const restore = (id: string) => patchFile(id, { status: "1" });
 
+/** Permanently deletes a file or folder: trash first, then purge (WorkDrive only purges trashed items). */
+export async function permanentlyDelete(id: string): Promise<void> {
+  await trash(id);
+  await patchFile(id, { status: "61" });
+}
+
+/** Deletes a team folder and everything in it. A Zoho team admin can restore it from WorkDrive's Admin Console within the retention period. */
+export async function deleteTeamFolder(id: string): Promise<void> {
+  await json(`/teamfolders/${id}`, { method: "DELETE" });
+}
+
+/** New team folder in a team. Private: only its members (the connected account) can see it in WorkDrive. */
+export async function createTeamFolder(teamId: string, name: string, description?: string): Promise<{ id: string; name: string }> {
+  const doc = await json("/teamfolders", {
+    method: "POST",
+    headers: jsonApiHeaders,
+    body: JSON.stringify({ data: { attributes: { name, parent_id: teamId, is_public_within_team: false, ...(description ? { description } : {}) }, type: "teamfolders" } }),
+  });
+  const [r] = asArray(doc.data);
+  if (!r) throw new Error("WorkDrive create team folder returned no data");
+  return { id: r.id, name: String(r.attributes.name ?? name) };
+}
+
+export async function renameTeamFolder(id: string, name: string): Promise<void> {
+  await json(`/teamfolders/${id}`, {
+    method: "PATCH",
+    headers: jsonApiHeaders,
+    body: JSON.stringify({ data: { type: "teamfolders", id, attributes: { name } } }),
+  });
+}
+
 export async function createFolder(parentId: string, name: string): Promise<WdFile> {
   const doc = await json("/files", {
     method: "POST",
@@ -219,6 +250,15 @@ export async function upload(parentId: string, filename: string, content: Blob, 
   const id = str(r?.attributes?.resource_id) ?? r?.id;
   if (!id) throw new Error("WorkDrive upload returned no resource id");
   return id;
+}
+
+/** Adds a comment to a file in WorkDrive (shown in its comments panel there). */
+export async function addComment(resourceId: string, html: string): Promise<void> {
+  await json("/comments", {
+    method: "POST",
+    headers: jsonApiHeaders,
+    body: JSON.stringify({ data: { attributes: { resource_id: resourceId, comment_html: html }, type: "comments" } }),
+  });
 }
 
 export async function listVersions(id: string) {

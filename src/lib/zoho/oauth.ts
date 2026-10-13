@@ -11,20 +11,25 @@ export const ZOHO_SCOPES = [
   "WorkDrive.users.READ",
   "WorkDrive.team.READ",
   "WorkDrive.teamfolders.READ",
+  "WorkDrive.teamfolders.CREATE",
+  "WorkDrive.teamfolders.UPDATE",
+  "WorkDrive.teamfolders.DELETE",
   "WorkDrive.files.ALL",
+  "WorkDrive.comments.CREATE",
   "ZohoFiles.files.READ",
   "ZohoFiles.files.CREATE",
 ].join(",");
 
-const redirectUri = () => `${env().APP_URL}/api/zoho/callback`;
+// Zoho must send the browser back to the origin it left from, or the session and state cookies are missing.
+const redirectUri = (origin: string) => `${origin}/api/zoho/callback`;
 
-export function authorizeUrl(state: string): string {
+export function authorizeUrl(state: string, origin: string): string {
   const url = new URL("/oauth/v2/auth", env().ZOHO_ACCOUNTS_URL);
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: env().ZOHO_CLIENT_ID,
     scope: ZOHO_SCOPES,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirectUri(origin),
     access_type: "offline",
     prompt: "consent",
     state,
@@ -56,11 +61,11 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
   return body;
 }
 
-export async function exchangeCode(code: string) {
+export async function exchangeCode(code: string, origin: string) {
   const body = await tokenRequest({
     grant_type: "authorization_code",
     code,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirectUri(origin),
   });
   if (body.error || !body.access_token) throw new Error(`Zoho token exchange failed: ${body.error}`);
   if (!body.refresh_token) {
