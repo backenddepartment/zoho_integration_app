@@ -19,10 +19,10 @@ export type Node = {
   rootKind?: "teamfolder" | "myfolder";
 };
 
-export const LEVEL_NAMES: Record<number, LevelName> = { 1: "view", 2: "edit", 3: "manage" };
+export const LEVEL_NAMES: Record<number, LevelName> = { 1: "view", 2: "edit", 3: "manage", 4: "share" };
 
-// External accounts can never delete or move, whatever they are granted.
-const ROLE_CAP: Record<CurrentUser["role"], number> = { superadmin: LEVELS.manage, admin: LEVELS.manage, staff: LEVELS.manage, external: LEVELS.edit };
+// External accounts can never delete, move or share, whatever they are granted.
+export const ROLE_CAP: Record<CurrentUser["role"], number> = { superadmin: LEVELS.share, admin: LEVELS.share, staff: LEVELS.share, external: LEVELS.edit };
 
 export async function getNode(id: string): Promise<Node | null> {
   const [root] = await db().select().from(wdRoots).where(eq(wdRoots.id, id));
@@ -42,7 +42,7 @@ export async function getNode(id: string): Promise<Node | null> {
 }
 
 /** The item, every folder above it, and its root, with names. */
-async function lineage(id: string): Promise<{ id: string; name: string | null }[]> {
+export async function lineage(id: string): Promise<{ id: string; name: string | null }[]> {
   const result = await db().execute<{ id: string; name: string | null }>(sql`
     with recursive anc(id, parent_id, root_id, name) as (
       select id, parent_id, root_id, name from ${wdItems} where id = ${id}
@@ -62,7 +62,7 @@ async function lineage(id: string): Promise<{ id: string; name: string | null }[
  * anything marked "(Deleted)", or inside something that is, no longer exists.
  */
 export async function effectiveLevel(user: CurrentUser, id: string): Promise<number> {
-  if (isAdminRole(user.role)) return LEVELS.manage;
+  if (isAdminRole(user.role)) return LEVELS.share;
   const chain = await lineage(id);
   if (chain.some((c) => c.name && isDeletedName(c.name))) return 0;
   const ids = [...new Set(chain.map((c) => c.id))];
@@ -86,7 +86,7 @@ export async function authorize(user: CurrentUser, id: string, need: LevelName):
 export async function entryPoints(user: CurrentUser): Promise<(Node & { level: number })[]> {
   if (isAdminRole(user.role)) {
     const roots = (await db().select().from(wdRoots).orderBy(wdRoots.kind, wdRoots.name)).filter((r) => !isDeletedName(r.name));
-    return roots.map((r) => ({ id: r.id, kind: "root", name: r.name, rootId: r.id, parentId: null, extn: null, sizeBytes: null, modifiedMs: null, rootKind: r.kind, level: LEVELS.manage }));
+    return roots.map((r) => ({ id: r.id, kind: "root", name: r.name, rootId: r.id, parentId: null, extn: null, sizeBytes: null, modifiedMs: null, rootKind: r.kind, level: LEVELS.share }));
   }
   const mine = await db().select().from(grants).where(eq(grants.userId, user.id));
   // effectiveLevel also hides grants on deleted things and folds in higher grants from above.

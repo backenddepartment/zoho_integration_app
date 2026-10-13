@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type DragEvent, type MouseEvent } from "react";
 import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
 import { buttonSecondary, danger, fmtSize, fmtTime, linkButton } from "@/components/ui";
-import { isDeletedName } from "@/db/roles";
+import { isDeletedName, isZohoNative } from "@/db/roles";
+import { useShareDialog } from "./share-dialog";
 
 export type Row = {
   id: string;
@@ -19,7 +20,7 @@ export type Row = {
   changedInApp: boolean;
 };
 type Target = Pick<Row, "id" | "name" | "isFolder">;
-export type Powers = { canEdit: boolean; canManage: boolean; isAdmin: boolean; isSuperadmin: boolean };
+export type Powers = { canEdit: boolean; canManage: boolean; canShare: boolean; isAdmin: boolean; isSuperadmin: boolean };
 
 const VIEWABLE = new Set(["pdf", "png", "jpg", "jpeg", "gif", "webp"]);
 const extOf = (r: Pick<Row, "name" | "extn">) => (r.extn ?? (r.name.includes(".") ? r.name.split(".").pop()! : "")).toLowerCase();
@@ -74,6 +75,9 @@ export function useFileOps(folderId: string | null) {
       } else {
         return null;
       }
+    }
+    if (r.ok && r.body.convertedToZoho) {
+      return `${file.name}: uploaded, but WorkDrive converted it to a Zoho document (its "Convert all files to Zoho WorkDrive's format on upload" setting is on), so it can't be downloaded as the original file.`;
     }
     return r.ok ? null : `${file.name}: ${errorOf(r)}`;
   };
@@ -144,7 +148,29 @@ export function useFileOps(folderId: string | null) {
     );
   };
 
-  return { busy, error, newFolder, upload, rename, remove, restore, purge };
+  /** Replace a file's content with one picked from the computer; WorkDrive keeps the old one as a version. */
+  const newVersion = (t: Target & { extn: string | null }) => {
+    if (isZohoNative(t.extn)) {
+      return window.alert("This is a Zoho document (WorkDrive converted it when it was uploaded), so it can't take a new version from a file. Edit it in WorkDrive instead.");
+    }
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.onchange = () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+      const want = (t.extn ?? t.name.split(".").pop() ?? "").toLowerCase();
+      const got = (file.name.split(".").pop() ?? "").toLowerCase();
+      if (want && got !== want && !window.confirm(`"${t.name}" is a .${want} file but you picked a .${got} file. Upload it as the new version anyway?`)) return;
+      run(`Uploading new version of ${t.name}…`, async () => {
+        // No X-Base-Modified: the person is deliberately replacing whatever is there now.
+        const r = await call(`/api/files/${t.id}/content`, { method: "PUT", body: file });
+        return r.ok ? null : errorOf(r);
+      });
+    };
+    picker.click();
+  };
+
+  return { busy, error, newFolder, upload, rename, remove, restore, purge, newVersion };
 }
 
 const copyLink = (id: string) => navigator.clipboard?.writeText(`${window.location.origin}/files/${id}`);
@@ -169,10 +195,11 @@ export function FileBrowser(props: { folderId: string; rows: Row[] } & Powers) {
 }
 
 function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; rows: Row[] } & Powers) {
-  const { canEdit, isAdmin } = powers;
+  const { canEdit, canShare } = powers;
   const router = useRouter();
   const openMenu = useContextMenu();
   const ops = useFileOps(folderId);
+  const share = useShareDialog();
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -180,6 +207,7 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
     { label: "New folder", onSelect: () => ops.newFolder(), disabled: !canEdit },
     { label: "Upload files…", onSelect: () => fileInput.current?.click(), disabled: !canEdit },
     "separator",
+    ...(canShare ? [{ label: "Share this folder…", onSelect: () => share.open(folderId) }] : []),
     { label: "Refresh", onSelect: () => router.refresh() },
     { label: "Copy link to this folder", onSelect: () => copyLink(folderId) },
   ];
@@ -190,8 +218,10 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
       items.push({ label: "Download", onSelect: () => startDownload(row.id) });
       if (VIEWABLE.has(extOf(row))) items.push({ label: "Open in browser", onSelect: () => window.open(`/api/files/${row.id}/download?inline=1`, "_blank", "noopener") });
     }
-    items.push("separator", { label: "Rename…", onSelect: () => ops.rename(row), disabled: !canEdit });
-    if (isAdmin) items.push({ label: "Share…", onSelect: () => router.push(`/files/${row.id}#sharing`) });
+    items.push("separator");
+    if (!row.isFolder) items.push({ label: "Upload new version…", onSelect: () => ops.newVersion(row), disabled: !canEdit || isZohoNative(row.extn) });
+    items.push({ label: "Rename…", onSelect: () => ops.rename(row), disabled: !canEdit });
+    if (canShare) items.push({ label: "Share…", onSelect: () => share.open(row.id) });
     items.push({ label: "Copy link", onSelect: () => copyLink(row.id) });
     items.push("separator", ...deleteItems(row, powers, ops));
     return items;
@@ -283,7 +313,7 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
                     </Link>
                     {deleted && <DeletedBadge />}
                   </td>
-                  <td className="py-2 pr-4 whitespace-nowrap">{row.isFolder ? "" : fmtSize(row.sizeBytes)}</td>
+                  <td className="py-2 pr-4 whitespace-nowrap">{row.isFolder ? "" : isZohoNative(row.extn) ? <span className="text-zinc-500">Zoho document</span> : fmtSize(row.sizeBytes)}</td>
                   <td className="py-2 pr-4">
                     <div className="whitespace-nowrap">{fmtTime(row.modifiedMs)}</div>
                     {row.changedBy && (
@@ -312,6 +342,7 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
         </table>
         {rows.length === 0 && <p className="p-3 text-sm text-zinc-500">This folder is empty.{canEdit && " Right-click here or drop files to add something."}</p>}
       </div>
+      {share.element}
     </section>
   );
 }
@@ -321,12 +352,17 @@ export function DeletedBadge() {
 }
 
 /** Rename, delete, restore and permanent delete on a file's own page. */
-export function FileButtons(props: { id: string; name: string; deleted: boolean; afterDelete: string } & Powers) {
+export function FileButtons(props: { id: string; name: string; extn: string | null; deleted: boolean; afterDelete: string } & Powers) {
   const ops = useFileOps(null);
   const t = { id: props.id, name: props.name, isFolder: false };
   const deleted = props.deleted;
   return (
     <span className="inline-flex flex-wrap items-center gap-3">
+      {props.canEdit && !deleted && !isZohoNative(props.extn) && (
+        <button onClick={() => ops.newVersion({ ...t, extn: props.extn })} disabled={ops.busy !== null} className={linkButton}>
+          Upload new version
+        </button>
+      )}
       {props.canEdit && !deleted && (
         <button onClick={() => ops.rename(t)} disabled={ops.busy !== null} className={linkButton}>
           Rename

@@ -124,9 +124,6 @@ export const sessions = pgTable(
   (t) => [index("sessions_user_idx").on(t.userId)],
 );
 
-/** Permission levels, ordered: each includes everything below it. */
-export const LEVELS = { view: 1, edit: 2, manage: 3 } as const;
-export type LevelName = keyof typeof LEVELS;
 
 /**
  * A user's access to a team folder, folder or file. A grant on a folder covers everything inside it;

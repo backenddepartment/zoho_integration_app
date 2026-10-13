@@ -93,7 +93,7 @@ export const DELETE = handle(async (request: Request, ctx: Ctx) => {
   }
 
   if (node.kind === "root" && !isAdminRole(user.role)) throw new HttpError(403, "Only admins can delete team folders");
-  const name = await softDelete(node, user.name);
+  const name = await softDelete(node, user);
   await record(user, node.kind === "root" ? "teamfolder.delete" : "file.delete", id, { from: node.name, to: name }, node.kind === "root" ? undefined : { fileId: id });
   return Response.json({ ok: true, name });
 });

@@ -34,14 +34,19 @@ A web portal that lets staff and external users create, view, edit and delete co
 | staff | Only what is shared with them, up to the level granted |
 | external | Same as staff, but never more than **edit** (no delete or move) |
 
-Admins share a team folder, folder or file with a user from its page (**Sharing** panel). Access covers
-everything inside it. If a user has several grants, the highest level on the item or any folder above it applies.
+Sharing works like WorkDrive: right-click any team folder, folder or file → **Share…** (or the **Share**
+button on its page). Pick a person and a role. Access on a folder covers everything inside it. If someone
+has several grants, the highest one on the item or any folder above it applies.
 
-| Level | Allows |
+| Role | Allows |
 |---|---|
-| view | Browse, download, see versions |
-| edit | Also upload (or save a new version), create folders, rename |
-| manage | Also delete and move |
+| Viewer | Browse, download, see versions |
+| Editor | Also upload (or save a new version), create folders, rename |
+| Organizer | Also delete and move |
+| Folder admin | Also share that item with others and change their access |
+
+App admins and superadmins have everything everywhere. External users can be at most Editor. Folder
+admins can't remove their own access.
 
 **Deleting** renames the item in WorkDrive to `(Deleted by Jade Madigal) name`. If that name is
 taken, the date is added: `(Deleted by Jade Madigal 2026-10-13 1215) name`. Nothing is removed. The

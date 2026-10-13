@@ -2,16 +2,16 @@ import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { addedByFromName, db, deletedByFromName, displayName, isAdminRole, isDeletedName, LEVELS, wdItems } from "@/db";
+import { addedByFromName, db, deletedByFromName, displayName, isAdminRole, isDeletedName, isZohoNative, levelLabel, LEVELS, wdItems } from "@/db";
 import { AppHeader } from "@/components/app-header";
 import { fmtSize, fmtTime, Loading } from "@/components/ui";
-import { breadcrumb, effectiveLevel, getNode, LEVEL_NAMES } from "@/lib/access";
+import { breadcrumb, effectiveLevel, getNode } from "@/lib/access";
 import { ACTION_LABELS, activityFor, history } from "@/lib/activity";
 import { requireUser } from "@/lib/auth";
 import { listVersions } from "@/lib/zoho/workdrive";
 import { DeletedBadge, FileBrowser, FileButtons, type Powers } from "../file-actions";
 import { LiveSync } from "../live-sync";
-import { SharePanel } from "../share-panel";
+import { ShareButton } from "../share-dialog";
 
 export const metadata = { title: "Files" };
 
@@ -36,6 +36,7 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
   const powers: Powers = {
     canEdit: level >= LEVELS.edit,
     canManage: level >= LEVELS.manage,
+    canShare: level >= LEVELS.share,
     isAdmin: isAdminRole(user.role),
     isSuperadmin: user.role === "superadmin",
   };
@@ -68,7 +69,10 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
             {displayName(node.name)}
             {isDeletedName(node.name) && <DeletedBadge />}
           </h1>
-          <span className="text-xs text-zinc-500">Your access: {LEVEL_NAMES[level]}</span>
+          <span className="flex items-center gap-3">
+            <span className="text-xs text-zinc-500">Your access: {isAdminRole(user.role) ? `${user.role} (everything)` : levelLabel(level)}</span>
+            {powers.canShare && <ShareButton id={node.id} />}
+          </span>
         </div>
         {isDeletedName(node.name) && (
           <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
@@ -88,7 +92,6 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
 
         <ActivityList id={node.id} />
 
-        {powers.isAdmin && <SharePanel resourceId={node.id} />}
       </main>
     </>
   );
@@ -132,7 +135,7 @@ async function FileDetails(props: { id: string; rawName: string; extn: string | 
     <section className="flex flex-col gap-4">
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
         <dt className="text-zinc-500">Size</dt>
-        <dd>{fmtSize(props.sizeBytes)}</dd>
+        <dd>{isZohoNative(props.extn) ? "Zoho document (converted by WorkDrive on upload)" : fmtSize(props.sizeBytes)}</dd>
         <dt className="text-zinc-500">Created by</dt>
         <dd>{mine?.created ? `${mine.created.name}, ${fmtTime(mine.created.at)}` : (addedBy ?? "Before this app (in WorkDrive)")}</dd>
         <dt className="text-zinc-500">Last change</dt>
@@ -151,7 +154,7 @@ async function FileDetails(props: { id: string; rawName: string; extn: string | 
             Open in browser
           </a>
         )}
-        <FileButtons id={props.id} name={name} deleted={isDeletedName(props.rawName)} afterDelete={props.parentId ? `/files/${props.parentId}` : "/files"} {...props.powers} />
+        <FileButtons id={props.id} name={name} extn={props.extn} deleted={isDeletedName(props.rawName)} afterDelete={props.parentId ? `/files/${props.parentId}` : "/files"} {...props.powers} />
       </div>
 
       <div>

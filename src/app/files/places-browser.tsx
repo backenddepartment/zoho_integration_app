@@ -7,8 +7,9 @@ import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } fro
 import { buttonSecondary } from "@/components/ui";
 import { isDeletedName } from "@/db/roles";
 import { DeletedBadge, deleteItems, useFileOps } from "./file-actions";
+import { useShareDialog } from "./share-dialog";
 
-export type Place = { id: string; name: string; kind: "root" | "folder" | "file"; access: string; isTeamFolder: boolean; canManage: boolean };
+export type Place = { id: string; name: string; kind: "root" | "folder" | "file"; access: string; isTeamFolder: boolean; canManage: boolean; canShare: boolean };
 
 /** The starting list (team folders, or what's shared with the user), with right-click menus. */
 export function PlacesBrowser(props: { places: Place[]; isAdmin: boolean; isSuperadmin: boolean; needsReconnect: boolean }) {
@@ -23,6 +24,7 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
   const router = useRouter();
   const openMenu = useContextMenu();
   const ops = useFileOps(null);
+  const share = useShareDialog();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,11 +51,11 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
     const items: MenuItem[] = [{ label: "Open", onSelect: () => router.push(`/files/${p.id}`) }];
     if (p.kind === "file") items.push({ label: "Download", onSelect: () => startDownload(p.id) });
     if (isAdmin && p.isTeamFolder && !deleted) items.push({ label: "Rename…", onSelect: () => ops.rename(target, "Rename team folder to") });
-    if (isAdmin) items.push({ label: "Share…", onSelect: () => router.push(`/files/${p.id}#sharing`) });
+    if (isAdmin || p.canShare) items.push({ label: "Share…", onSelect: () => share.open(p.id) });
     items.push({ label: "Copy link", onSelect: () => navigator.clipboard?.writeText(`${window.location.origin}/files/${p.id}`) });
     // My Folders can't be deleted; team folders only by admins; shared items by whoever manages them.
     const deletable = p.kind === "root" ? p.isTeamFolder && isAdmin : p.canManage;
-    if (deletable) items.push("separator", ...deleteItems(target, { canEdit: p.canManage, canManage: p.canManage, isAdmin, isSuperadmin }, ops));
+    if (deletable) items.push("separator", ...deleteItems(target, { canEdit: p.canManage, canManage: p.canManage, canShare: p.canShare, isAdmin, isSuperadmin }, ops));
     return items;
   };
 
@@ -120,6 +122,7 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
           })}
         </ul>
       </div>
+      {share.element}
     </section>
   );
 }

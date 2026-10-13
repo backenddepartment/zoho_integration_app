@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { addedName, db, displayName, isDeletedName, wdItems } from "@/db";
+import { addedName, db, displayName, isDeletedName, isZohoNative, wdItems } from "@/db";
 import { authorize, indexFile } from "@/lib/access";
 import { record } from "@/lib/activity";
 import { apiUser, handle, HttpError } from "@/lib/auth";
@@ -35,9 +35,10 @@ export const POST = handle(async (request: Request, ctx: RouteContext<"/api/file
   // A new version must use the existing file's exact WorkDrive name so it stacks as a version;
   // anything new is named after the person adding it.
   const asVersion = Boolean(existing) && onConflict === "version";
-  const resourceId = await wd.upload(id, asVersion ? existing!.name : addedName(file.name, user.name), file, asVersion);
+  const resourceId = await wd.upload(id, asVersion ? existing!.name : addedName(file.name, user), file, asVersion);
   const stored = await wd.getFile(resourceId);
   await indexFile({ ...stored, parentId: id }, node.rootId);
   await record(user, asVersion ? "file.new_version" : "file.upload", resourceId, { name: stored.name, parentId: id, size: file.size }, { fileId: resourceId });
-  return Response.json({ id: resourceId, name: stored.name, newVersion: asVersion }, { status: 201 });
+  // WorkDrive may turn Office files into Zoho documents on upload (a team setting); tell the uploader.
+  return Response.json({ id: resourceId, name: stored.name, newVersion: asVersion, convertedToZoho: isZohoNative(stored.extn) }, { status: 201 });
 });

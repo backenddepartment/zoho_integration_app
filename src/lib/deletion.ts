@@ -1,6 +1,6 @@
 import "server-only";
 import { eq, inArray, sql } from "drizzle-orm";
-import { db, deletedName, grants, isDeletedName, stripDeleted, wdItems, wdRoots } from "@/db";
+import { db, deletedName, grants, isDeletedName, stripDeleted, wdItems, wdRoots, type Person } from "@/db";
 import { indexFile, type Node } from "@/lib/access";
 import { HttpError } from "@/lib/auth";
 import * as wd from "@/lib/zoho/workdrive";
@@ -23,9 +23,9 @@ async function renameNode(node: Node, name: string) {
 const isNameClash = (e: unknown) => e instanceof wd.WorkDriveError && e.status >= 400 && e.status < 500 && ![401, 403, 404].includes(e.status);
 
 /** Marks a node "(Deleted by <name>)". Returns the new name. */
-export async function softDelete(node: Node, byName: string): Promise<string> {
+export async function softDelete(node: Node, by: Person): Promise<string> {
   if (isDeletedName(node.name)) throw new HttpError(409, "Already deleted");
-  const plain = deletedName(node.name, byName);
+  const plain = deletedName(node.name, by);
   try {
     await renameNode(node, plain);
     return plain;
@@ -33,7 +33,7 @@ export async function softDelete(node: Node, byName: string): Promise<string> {
     if (!isNameClash(e)) throw e;
     // "(Deleted) name" is taken by an earlier deletion: date this one instead.
     const stamp = new Date().toISOString().slice(0, 16).replace("T", " ").replace(":", "");
-    const dated = deletedName(node.name, byName, stamp);
+    const dated = deletedName(node.name, by, stamp);
     await renameNode(node, dated);
     return dated;
   }

@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { Suspense } from "react";
-import { db, displayName, isAdminRole, LEVELS, zohoConnection } from "@/db";
+import { db, displayName, isAdminRole, levelLabel, LEVELS, zohoConnection } from "@/db";
 import { AppHeader } from "@/components/app-header";
 import { Loading } from "@/components/ui";
-import { entryPoints, LEVEL_NAMES } from "@/lib/access";
+import { entryPoints } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { CONNECTION_ID, ZOHO_SCOPES } from "@/lib/zoho/oauth";
 import { LiveSync } from "./live-sync";
@@ -41,9 +41,10 @@ async function Content() {
             id: p.id,
             name: displayName(p.name),
             kind: p.kind,
-            access: LEVEL_NAMES[p.level],
+            access: isAdmin ? "" : levelLabel(p.level),
             isTeamFolder: p.rootKind === "teamfolder",
             canManage: p.level >= LEVELS.manage,
+            canShare: p.level >= LEVELS.share,
           }))}
           isAdmin={isAdmin}
           isSuperadmin={user.role === "superadmin"}

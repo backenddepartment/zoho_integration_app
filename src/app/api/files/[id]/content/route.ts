@@ -1,4 +1,4 @@
-import { addedName, displayName } from "@/db";
+import { addedName, displayName, isZohoNative } from "@/db";
 import { authorize, indexFile } from "@/lib/access";
 import { record } from "@/lib/activity";
 import { apiUser, handle, HttpError } from "@/lib/auth";
@@ -23,9 +23,12 @@ export const PUT = handle(async (request: Request, ctx: RouteContext<"/api/files
 
   const current = await wd.getFile(id);
   if (!current.parentId) throw new HttpError(409, "WorkDrive didn't report the file's folder");
+  if (isZohoNative(current.extn)) {
+    throw new HttpError(409, "This is a Zoho document (WorkDrive converted it on upload), so it can't take a new version from a file. Edit it in WorkDrive instead.");
+  }
 
   if (base && current.modifiedMs !== null && current.modifiedMs !== base) {
-    const copyName = addedName(conflictName(displayName(current.name), user.name), user.name);
+    const copyName = addedName(conflictName(displayName(current.name), user.name), user);
     const copyId = await wd.upload(current.parentId, copyName, content, false);
     await indexFile({ ...(await wd.getFile(copyId)), parentId: current.parentId }, node.rootId);
     await record(user, "file.save_conflict_copy", copyId, { original: id, name: copyName }, { fileId: copyId });

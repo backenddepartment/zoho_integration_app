@@ -18,7 +18,7 @@ export const POST = handle(async (request: Request, ctx: RouteContext<"/api/file
   const { node } = await authorize(user, id, "edit");
   if (node.kind === "file") throw new HttpError(400, "Folders can only be created inside folders");
 
-  const folder = await wd.createFolder(id, addedName(parsed.data.name, user.name));
+  const folder = await wd.createFolder(id, addedName(parsed.data.name, user));
   await indexFile({ ...folder, parentId: id }, node.rootId);
   await record(user, "folder.create", folder.id, { name: folder.name, parentId: id }, { fileId: folder.id });
   return Response.json({ id: folder.id }, { status: 201 });
