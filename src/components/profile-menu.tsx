@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import type { Role } from "@/db/roles";
 import type { CurrentUser } from "@/lib/auth";
@@ -69,24 +69,21 @@ export function ProfileMenu({ user }: { user: CurrentUser }) {
             <Link href="/account" role="menuitem" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--tint)]">
               Your profile
             </Link>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                role="menuitem"
-                onClick={async (e) => {
-                  // Hold the submit until the modal answers, then send the form ourselves.
-                  e.preventDefault();
-                  const form = e.currentTarget.form;
-                  setOpen(false);
-                  const ok = await askConfirm({ title: "Sign out?", message: "You'll need to sign in again to use Getmeds Files.", confirmLabel: "Sign out", danger: true });
-                  if (ok) form?.requestSubmit();
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--bad)] hover:bg-[var(--bad-bg)]"
-              >
-                <IconSignOut className="h-4 w-4" />
-                Sign out
-              </button>
-            </form>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={async () => {
+                // Closing the menu removes this button, so sign out by calling the action itself
+                // (not through a form in the menu, which would be gone by the time they confirm).
+                setOpen(false);
+                const ok = await askConfirm({ title: "Sign out?", message: "You'll need to sign in again to use Getmeds Files.", confirmLabel: "Sign out", danger: true });
+                if (ok) startTransition(() => logoutAction());
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--bad)] hover:bg-[var(--bad-bg)]"
+            >
+              <IconSignOut className="h-4 w-4" />
+              Sign out
+            </button>
           </div>
         </div>
       )}
