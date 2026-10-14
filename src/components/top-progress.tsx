@@ -61,9 +61,13 @@ export function TopProgress() {
       stopTimers();
       running.current = true;
       setVisible(true);
-      setProgress(0.08);
-      // Slows as it nears 90%, so a long load never looks finished.
-      t.trickle = setInterval(() => setProgress((p) => p + (0.9 - p) * 0.12), 200);
+      // Jumps straight to a quarter so the click feels answered at once, rushes to ~70%,
+      // then crawls towards 95% so a long load never looks finished.
+      setProgress(0.25);
+      t.trickle = setInterval(
+        () => setProgress((p) => (p < 0.7 ? p + (0.8 - p) * 0.22 : p + (0.95 - p) * 0.035)),
+        100,
+      );
       // Never leave it hanging if the navigation is cancelled or fails.
       t.giveUp = setTimeout(() => finish(), 15_000);
     };
@@ -72,11 +76,11 @@ export function TopProgress() {
       running.current = false;
       stopTimers();
       setProgress(1);
-      // Fill to the end, fade out, then reset once it's invisible.
+      // Zip to the end, fade out, then reset once it's invisible.
       t.hide = setTimeout(() => {
         setVisible(false);
-        t.hide = setTimeout(() => setProgress(0), 300);
-      }, 350);
+        t.hide = setTimeout(() => setProgress(0), 250);
+      }, 200);
     };
 
     const onClick = (e: MouseEvent) => {
@@ -104,12 +108,18 @@ export function TopProgress() {
   }, [pathname]);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[2000] h-[3px]">
-      <div
-        className="h-full origin-left bg-[#1EA0DA] shadow-[0_0_8px_rgba(30,160,218,0.7)] transition-[transform,opacity] duration-300 ease-out"
-        style={{ transform: `scaleX(${progress})`, opacity: visible ? 1 : 0 }}
-      />
-    </div>
+    <>
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[2000] h-[3px] overflow-hidden">
+        {/* Slid in from the left rather than scaled, so the glowing tip at its end keeps its shape. */}
+        <div
+          className="relative h-full bg-gradient-to-r from-[#12769f] via-[#1EA0DA] to-[#5cc8f5] transition-[transform,opacity] duration-200 ease-out"
+          style={{ transform: `translateX(${(progress - 1) * 100}%)`, opacity: visible ? 1 : 0 }}
+        >
+          <div className="absolute inset-0 animate-progress-shimmer bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.65)_50%,transparent_100%)] bg-[length:40%_100%] bg-no-repeat" />
+          <div className="absolute -top-1 right-0 h-[11px] w-28 rounded-full shadow-[0_0_10px_#1EA0DA,0_0_5px_#1EA0DA]" />
+        </div>
+      </div>
+    </>
   );
 }
 

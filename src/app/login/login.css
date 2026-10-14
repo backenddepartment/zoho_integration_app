@@ -4,8 +4,7 @@
    Font: Poppins via next/font (./font.ts). Images: /getmeds-logo.png and
    /2mg-logo.png from public/, the illustration from ../assets/loginbg.png. */
 
-.login-page,
-.login-toast {
+.login-page {
   --font: var(--font-poppins), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --bg:               #FFFFFF;
   --bg-secondary:     rgba(0, 0, 0, 0.025);
@@ -351,30 +350,32 @@ body:has(.login-page) { margin: 0; }
   line-height: 1.45;
 }
 
-/* Login-page error toast: portaled to <body> so no animated ancestor can capture
-   its fixed position; slides down into the top-right, level with the topbar logos. */
-.login-toast {
-  position: fixed;
-  top: 22px;
-  right: clamp(20px, 6vw, 96px);
-  z-index: 1000;
-  max-width: min(calc(100vw - 32px), 460px);
-  padding: 10px 16px;
-  border: 1px solid rgba(179, 49, 44, 0.3);
-  border-radius: 10px;
-  background: #fdf1f0;
-  color: var(--error);
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.45;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  animation: loginToastSlide 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+/* A field in error: red outline (and a red ring while focused), message right under it. */
+.login-page .login-input[aria-invalid="true"] {
+  border-color: var(--error);
+  background: #fffafa;
+}
+.login-page .login-input[aria-invalid="true"]:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 0.25em rgba(179, 49, 44, 0.14);
 }
 
-@keyframes loginToastSlide {
-  from { opacity: 0; transform: translateY(-200%); }
-  to   { opacity: 1; transform: translateY(0); }
+.login-field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0.1em 0 0 1.4em; /* lines up with the text inside the pill input */
+  font-size: 0.74em;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--error);
+  animation: loginErrorIn 0.2s ease-out both;
+}
+.login-field-error svg { flex: none; }
+
+@keyframes loginErrorIn {
+  from { opacity: 0; transform: translateY(-0.3em); }
+  to   { opacity: 1; transform: none; }
 }
 
 .login-submit-btn {
@@ -394,6 +395,51 @@ body:has(.login-page) { margin: 0; }
   cursor: pointer;
   background: #1D9FDA;
   transition: background 0.15s ease, transform 0.15s ease;
+}
+
+/* Step two: the account the password is for, with Change to go back (like Zoho's email chip) */
+.login-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  max-width: 100%;
+  margin-top: 0.5em;
+  padding: 0.3em 0.9em 0.3em 0.3em;
+  border: 1px solid var(--border-dark);
+  border-radius: 999px;
+  font-size: 0.8em;
+}
+.login-account-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 50%;
+  background: linear-gradient(to top right, #1ea0da, #12769f);
+  color: #fff;
+  font-weight: 600;
+}
+.login-account-email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text);
+}
+.login-account-chip .login-link-btn { flex: none; font-weight: 600; }
+
+/* Each step slides in when it appears */
+.login-step-in { animation: loginStepIn 0.25s ease both; }
+
+/* Sign-in steps under the button (src/components/stepper.tsx), in the page's own font */
+.login-steps {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.4em;
+  font-family: var(--font);
+  animation: loginErrorIn 0.2s ease-out both;
 }
 
 .login-submit-btn:hover:not(:disabled) { background: #1790c5; }
@@ -511,7 +557,8 @@ body:has(.login-page) { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .login-card-body { animation: none !important; }
-  .login-toast { animation: none !important; }
+  .login-field-error { animation: none !important; }
+  .login-step-in { animation: none !important; }
   .login-spinner { animation: none !important; }
 }
 

@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { db, displayName, isAdminRole, levelLabel, LEVELS, zohoConnection } from "@/db";
-import { AppShell } from "@/components/app-shell";
 import { entryPoints } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { CONNECTION_ID, ZOHO_SCOPES } from "@/lib/zoho/oauth";
@@ -8,8 +7,8 @@ import { LiveSync } from "./live-sync";
 import { PlacesBrowser } from "./places-browser";
 
 export const metadata = { title: "Files" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
 
 export default function FilesHome() {
@@ -23,7 +22,7 @@ async function Content() {
   const [conn] = isAdmin ? await db().select({ scopes: zohoConnection.scopes }).from(zohoConnection).where(eq(zohoConnection.id, CONNECTION_ID)) : [];
 
   return (
-    <AppShell user={user}>
+    <>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 pt-3 sm:pt-4 pb-8">
         {/* Top Banner with Illustration */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#182232] via-[#1d2b3e] to-[#25374e] px-6 py-5 sm:px-8 sm:py-5.5 text-white border border-[#2b3e58]">
@@ -79,6 +78,6 @@ async function Content() {
           needsReconnect={Boolean(conn) && conn.scopes !== ZOHO_SCOPES}
         />
       </main>
-    </AppShell>
+    </>
   );
 }

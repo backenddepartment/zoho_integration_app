@@ -1,7 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { auditLog, db, syncRuns, zohoConnection } from "@/db";
-import { AppShell } from "@/components/app-shell";
 import { Pager } from "@/components/pager";
 import { fmtTime } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
@@ -9,8 +8,8 @@ import { CONNECTION_ID, ZOHO_SCOPES } from "@/lib/zoho/oauth";
 import { SyncButton } from "./sync-button";
 
 export const metadata = { title: "WorkDrive" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
 
 const ACTIVITY_PAGE = 15;
@@ -28,7 +27,7 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
 }
 
 async function Content({ searchParams }: Pick<PageProps<"/admin">, "searchParams">) {
-  const me = await requireAdmin();
+  await requireAdmin();
   const params = await searchParams;
   const zohoStatus = typeof params.zoho === "string" ? params.zoho : null;
 
@@ -56,7 +55,7 @@ async function Content({ searchParams }: Pick<PageProps<"/admin">, "searchParams
     lastRun?.status === "succeeded" ? "tag-good" : lastRun?.status === "running" ? "tag-info" : lastRun?.status === "failed" ? "tag-bad" : "tag-mute";
 
   return (
-    <AppShell user={me}>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
         <header>
           <p className="eyebrow">Administration</p>
@@ -214,7 +213,7 @@ async function Content({ searchParams }: Pick<PageProps<"/admin">, "searchParams
           </div>
         </section>
       </main>
-    </AppShell>
+    </>
   );
 }
 

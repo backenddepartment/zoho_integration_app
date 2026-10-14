@@ -15,6 +15,11 @@ const schema = z.object({
     .pipe(z.array(z.string().url()).min(1)),
   ZOHO_CLIENT_ID: z.string().min(1),
   ZOHO_CLIENT_SECRET: z.string().min(1),
+  // "Sign in with Zoho" can use its own Zoho API Console client (recommended, so it can have
+  // multi-DC turned on); without these it uses the client above. Either way, each origin's
+  // /api/auth/zoho/callback must be registered as a redirect URI.
+  ZOHO_LOGIN_CLIENT_ID: z.string().optional().transform((v) => v || undefined),
+  ZOHO_LOGIN_CLIENT_SECRET: z.string().optional().transform((v) => v || undefined),
   ZOHO_ACCOUNTS_URL: z.string().url().default("https://accounts.zoho.com"),
   ZOHO_API_URL: z.string().url().default("https://www.zohoapis.com/workdrive/api/v1"),
   ZOHO_DOWNLOAD_URL: z.string().url().default("https://download.zoho.com/v1/workdrive"),

@@ -17,6 +17,44 @@ export function startDownload(id: string) {
 /** Opens a menu at a point, e.g. from onContextMenu or a "⋯" button. */
 export const useContextMenu = () => useContext(Ctx);
 
+/**
+ * A button that drops a menu down from under it, like WorkDrive's "Manage ▾" and "New ▾".
+ * Needs a ContextMenuProvider above it.
+ */
+export function MenuButton({
+  label,
+  items,
+  icon,
+  primary = false,
+  disabled = false,
+}: {
+  label: string;
+  items: MenuItem[];
+  icon?: ReactNode;
+  primary?: boolean;
+  disabled?: boolean;
+}) {
+  const open = useContextMenu();
+  return (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      disabled={disabled}
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        open(primary ? r.right - 192 : r.left, r.bottom + 6, items);
+      }}
+      className={`btn btn-sm gap-1.5 ${primary ? "btn-primary !bg-[var(--brand)] hover:!bg-[var(--accent-deep)] !text-white" : "btn-secondary !border-[var(--outline)]"}`}
+    >
+      {icon}
+      {label}
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 opacity-80" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
+  );
+}
+
 /** Hosts one floating menu for everything inside it. */
 export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);

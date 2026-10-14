@@ -9,12 +9,27 @@ import { endAllSessions, getCurrentUser, login, logout, startSession } from "@/l
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from "@/lib/password";
 
 export type FormState = { error?: string; ok?: string } | undefined;
+export type LoginFormState = { error: string; wrongCredentials?: true } | undefined;
 
-export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function loginAction(_prev: LoginFormState, formData: FormData): Promise<LoginFormState> {
   const result = await login(String(formData.get("email") ?? ""), String(formData.get("password") ?? ""));
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: result.error, wrongCredentials: result.wrongCredentials };
   await audit(result.user.email, "auth.login", null);
   redirect(result.user.mustChangePassword ? "/account" : "/files");
+}
+
+/**
+ * The login's first step, as on Zoho's sign-in page: is there an account for this email? Only
+ * then does the password field show. (It tells anyone whether an email has an account, the
+ * trade-off this two-step layout makes; the password itself stays guarded by the lockout.)
+ */
+export async function lookupEmailAction(emailInput: string): Promise<{ found: true } | { found: false; error: string }> {
+  const email = String(emailInput ?? "").trim().toLowerCase();
+  if (!email) return { found: false, error: "Enter your email." };
+  const [user] = await db().select({ active: users.active }).from(users).where(eq(users.email, email));
+  if (!user) return { found: false, error: "Couldn't find an account with this email. Check it, or ask an administrator to add you." };
+  if (!user.active) return { found: false, error: "This account is disabled. Ask an administrator." };
+  return { found: true };
 }
 
 export async function logoutAction() {

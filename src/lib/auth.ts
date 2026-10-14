@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import { db, isAdminRole, sessions, users, type Role } from "@/db";
-import { burnPasswordCheck, verifyPassword } from "@/lib/password";
+import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/password";
 import { env } from "@/lib/env";
 import { ZohoNotConnectedError } from "@/lib/zoho/oauth";
 import { WorkDriveError } from "@/lib/zoho/workdrive";
@@ -30,11 +30,12 @@ async function setSessionCookie(token: string, expires: Date) {
   });
 }
 
-export type LoginResult = { ok: true; user: CurrentUser } | { ok: false; error: string };
+/** `wrongCredentials` marks the generic email-or-password failure, so the form can flag both fields. */
+export type LoginResult = { ok: true; user: CurrentUser } | { ok: false; error: string; wrongCredentials?: true };
 
 export async function login(emailInput: string, password: string): Promise<LoginResult> {
   const email = emailInput.trim().toLowerCase();
-  const generic = { ok: false as const, error: "Wrong email or password." };
+  const generic = { ok: false as const, error: "Wrong email or password.", wrongCredentials: true as const };
   const [user] = await db().select().from(users).where(eq(users.email, email));
 
   if (!user) {
@@ -57,6 +58,41 @@ export async function login(emailInput: string, password: string): Promise<Login
   await db().update(users).set({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(users.id, user.id));
   await startSession(user.id);
   return { ok: true, user: { id: user.id, email: user.email, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword } };
+}
+
+/** Company email domains: a verified Zoho email at one of these gets an account on first sign-in. */
+export const COMPANY_DOMAINS = ["getmeds.ph", "2mginc.com"];
+
+/**
+ * Signs in the person Zoho vouched for (a verified email from "Sign in with Zoho"). Someone with a
+ * company email and no account yet gets one, as staff with access to nothing until a folder is
+ * shared with them; anyone else must have been added by an admin.
+ */
+export async function loginWithVerifiedEmail(emailInput: string, nameFromZoho: string | null): Promise<LoginResult & { created?: boolean }> {
+  const email = emailInput.trim().toLowerCase();
+  let [user] = await db().select().from(users).where(eq(users.email, email));
+  let created = false;
+  if (!user) {
+    if (!COMPANY_DOMAINS.includes(email.split("@")[1] ?? "")) {
+      return { ok: false, error: `There's no Getmeds Files account for ${email}. Ask an administrator to add you, or sign in with your password.` };
+    }
+    // They sign in through Zoho, so the password is a random one nobody knows (an admin can
+    // still issue a real one from the Users page).
+    const inserted = await db()
+      .insert(users)
+      .values({ email, name: nameFromZoho?.trim() || email.split("@")[0], role: "staff", passwordHash: await hashPassword(randomBytes(32).toString("base64url")), mustChangePassword: false })
+      .onConflictDoNothing({ target: users.email })
+      .returning();
+    created = inserted.length > 0;
+    // A second sign-in racing this one may have created it first.
+    [user] = created ? inserted : await db().select().from(users).where(eq(users.email, email));
+  }
+  if (!user.active) return { ok: false, error: "This account is disabled. Ask an administrator." };
+
+  // Zoho has confirmed who they are, so a lock from mistyped passwords no longer applies.
+  await db().update(users).set({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(users.id, user.id));
+  await startSession(user.id);
+  return { ok: true, created, user: { id: user.id, email: user.email, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword } };
 }
 
 export async function startSession(userId: string) {

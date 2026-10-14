@@ -10,12 +10,13 @@ export const buttonSecondary =
 export const linkButton = "text-sm text-zinc-600 underline hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100";
 export const danger = "text-sm text-red-600 underline hover:text-red-800 disabled:opacity-50";
 
+/** A page's loading placeholder: keeps the top loading line and its step card running. */
 export function Loading() {
   return (
-    <p className="px-4 py-10 text-sm text-zinc-500">
+    <div className="min-h-[50vh]" aria-busy="true">
       <ProgressHold />
-      Loading…
-    </p>
+      <span className="sr-only">Loading…</span>
+    </div>
   );
 }
 

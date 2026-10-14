@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FileIcon } from "@/components/file-icon";
 import { FolderGlyph } from "@/components/folder-tile";
 import { fmtTime } from "@/components/ui";
-import { useFileOps } from "@/app/files/file-actions";
+import { useFileOps } from "@/app/(app)/files/file-actions";
 
 export type DeletedRow = {
   id: string;

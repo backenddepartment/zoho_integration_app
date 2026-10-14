@@ -13,6 +13,14 @@ A web portal that lets staff and external users create, view, edit and delete co
    - Authorized Redirect URIs (use ⊕ to add each): `<origin>/api/zoho/callback` for every origin in `APP_URL`, e.g.
      `http://localhost:3000/api/zoho/callback`, `https://zoho-integration-app.vercel.app/api/zoho/callback`, `https://workdrive.getmeds.ph/api/zoho/callback`
    - Copy the Client ID and Client Secret.
+   - **Sign in with Zoho** (the button on the login page) also needs `<origin>/api/auth/zoho/callback` for every
+     origin, e.g. `http://localhost:3000/api/auth/zoho/callback`. It only asks Zoho for the person's verified
+     email. A verified @getmeds.ph or @2mginc.com email gets a Staff account on first sign-in (seeing nothing until
+     a folder is shared with it; the list is `COMPANY_DOMAINS` in `src/lib/auth.ts`); any other email must have been
+     added by an admin. To give it its own
+     client instead (recommended, so you can turn on **Multi-DC** for people whose Zoho account is in the EU,
+     India, …), add a second Server-based Application with that redirect URI and set `ZOHO_LOGIN_CLIENT_ID`
+     and `ZOHO_LOGIN_CLIENT_SECRET`.
 4. **Environment:** copy `.env.example` to `.env.local` and fill in every value. Generate the two secrets with:
    ```sh
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"

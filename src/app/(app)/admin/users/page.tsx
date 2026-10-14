@@ -1,7 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, displayName, grants, isAdminRole, levelLabel, users, wdItems, wdRoots } from "@/db";
-import { AppShell } from "@/components/app-shell";
 import { fmtTime } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { updateUserAction } from "./actions";
@@ -9,8 +8,8 @@ import { CreateUserForm, ResetPasswordForm } from "./forms";
 import { SharesButton, type SharedItem } from "./shares-button";
 
 export const metadata = { title: "Users" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
 
 export default function UsersPage() {
@@ -67,7 +66,7 @@ async function Content() {
   sharesOf.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
 
   return (
-    <AppShell user={me}>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
         <header>
           <p className="eyebrow">Administration</p>
@@ -143,7 +142,7 @@ async function Content() {
           </div>
         </section>
       </main>
-    </AppShell>
+    </>
   );
 }
 

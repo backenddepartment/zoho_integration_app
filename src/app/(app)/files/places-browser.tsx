@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "@/components/top-progress";
 import { useState, type MouseEvent } from "react";
-import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
+import { ContextMenuProvider, MenuButton, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
 import { askText } from "@/components/dialogs";
 import { FileIcon } from "@/components/file-icon";
 import { FolderGrid, FolderTile } from "@/components/folder-tile";
@@ -40,6 +40,8 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
     setCreating(false);
     if (!res.ok) return setError(body.error ?? `Failed (HTTP ${res.status})`);
     router.push(`/files/${body.id}#sharing`);
+    // The sidebar's tree is in the shared layout, which a navigation doesn't reload.
+    router.refresh();
   }
 
   const blankItems: MenuItem[] = [
@@ -72,25 +74,20 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
   const files = places.filter((p) => p.kind === "file");
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {isAdmin && (
-          <button
-            onClick={newTeamFolder}
-            disabled={creating}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-60"
-            style={{ backgroundColor: "#1D9FDA" }}
-          >
-            {creating ? "Creating…" : "New team folder"}
-          </button>
-        )}
+      {/* WorkDrive-style title row: what this list is, and + New on the right */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-[var(--rule)] pb-3">
+        <h2 className="section-title">{isAdmin ? "Team Folders" : "Shared with me"}</h2>
+        <span className="tag tag-mute">{places.length}</span>
+        <span className="ml-auto flex items-center gap-2">
+          {(creating || ops.busy) && <span className="text-sm text-[var(--ink-3)]">{creating ? "Creating…" : ops.busy}</span>}
+          {isAdmin && <MenuButton label="New" primary disabled={creating} icon={<span className="text-base leading-none">+</span>} items={[{ label: "New team folder", onSelect: newTeamFolder }]} />}
+        </span>
         {isAdmin && needsReconnect && (
-          <span className="text-sm text-amber-700 dark:text-amber-400">
+          <span className="w-full text-sm text-amber-700 dark:text-amber-400">
             Team folder changes need extra Zoho permissions. <Link href="/admin" className="underline">Reconnect Zoho</Link> first.
           </span>
         )}
-        {ops.busy && <span className="text-sm text-zinc-500">{ops.busy}</span>}
-        <span className="ml-auto hidden text-xs text-zinc-500 sm:inline">Right-click for options</span>
-        {problem && <p className="w-full text-sm text-red-600">{problem}</p>}
+        {problem && <p className="m-0 w-full text-sm text-red-600">{problem}</p>}
       </div>
       <div onContextMenu={onBlank} className="flex min-h-[50vh] flex-col gap-6">
         {folders.length > 0 && (

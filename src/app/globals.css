@@ -48,6 +48,24 @@ body {
     from { opacity: 1; }
     to   { opacity: 0; }
   }
+
+  /* The top loading line (src/components/top-progress.tsx): a light sweeping along it. */
+  --animate-progress-shimmer: progress-shimmer 1.1s linear infinite;
+
+  @keyframes progress-shimmer {
+    from { background-position: -60% 0; }
+    to   { background-position: 160% 0; }
+  }
+}
+
+/* A step's tick popping in (src/components/stepper.tsx) */
+@keyframes step-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-progress-shimmer { animation: none; }
 }
 
 /* ── Admin components (Users, WorkDrive, Deleted items), after the CRM component sheet:

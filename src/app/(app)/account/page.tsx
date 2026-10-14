@@ -1,15 +1,14 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db, users } from "@/db";
-import { AppShell } from "@/components/app-shell";
 import { fmtTime } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
 export const metadata = { title: "Your profile" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
 
 export default function AccountPage() {
@@ -67,7 +66,7 @@ async function Content() {
   );
 
   return (
-    <AppShell user={user}>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 pt-6 pb-8">
         <header>
           <p className="eyebrow">Account</p>
@@ -90,7 +89,7 @@ async function Content() {
           {user.mustChangePassword ? editCard : passwordCard}
         </div>
       </main>
-    </AppShell>
+    </>
   );
 }
 

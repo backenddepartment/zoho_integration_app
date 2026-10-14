@@ -21,9 +21,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <TopProgress />
         </Suspense>
-        {/* One boundary for every page, above them all: when moving between pages it is already
-            showing, so React keeps the current page on screen (with the loading line running)
-            until the next one is ready, instead of flashing a "Loading…" placeholder. */}
+        {/* A catch-all for pages without their own loading.tsx (the signed-in sections each have
+            one, which shows the loading page while they load). */}
         <Suspense fallback={<Loading />}>{children}</Suspense>
       </body>
     </html>

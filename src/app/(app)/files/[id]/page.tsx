@@ -2,23 +2,20 @@ import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addedByFromName, db, deletedByFromName, displayName, isAdminRole, isDeletedName, isZohoNative, levelLabel, LEVELS, wdItems } from "@/db";
-import { AppShell } from "@/components/app-shell";
+import { ActiveFolder } from "@/components/active-folder";
 import { FileIcon } from "@/components/file-icon";
 import { fmtSize, fmtTime } from "@/components/ui";
 import { breadcrumb, effectiveLevel, getNode } from "@/lib/access";
 import { ACTION_LABELS, activityFor, history } from "@/lib/activity";
 import { requireUser } from "@/lib/auth";
 import { listVersions } from "@/lib/zoho/workdrive";
-import { DeletedBadge, FileBrowser, FileButtons, type Powers } from "../file-actions";
+import { FileBrowser, FileHeader, type Crumb, type FolderInfo, type Powers } from "../file-actions";
 import { LiveSync } from "../live-sync";
-import { ShareButton } from "../share-dialog";
 
 export const metadata = { title: "Files" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
-
-const VIEWABLE = new Set(["pdf", "png", "jpg", "jpeg", "gif", "webp"]);
 
 export default function NodePage({ params }: PageProps<"/files/[id]">) {
   return <Content params={params} />;
@@ -40,66 +37,63 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
     isSuperadmin: user.role === "superadmin",
   };
 
+  const name = displayName(node.name);
+  const deleted = isDeletedName(node.name);
+  const crumbList = crumbs.map((c) => ({ id: c.id, name: displayName(c.name) }));
+  const accessLabel = `Your access: ${isAdminRole(user.role) ? `${user.role} (everything)` : levelLabel(level)}`;
+  const parentHref = node.parentId ? `/files/${node.parentId}` : "/files";
+  const deletedAlert = deleted && (
+    <div className="alert alert-bad">
+      <div>
+        <b>Deleted{deletedByFromName(node.name) ? ` by ${deletedByFromName(node.name)}` : ""}</b>
+        It&apos;s hidden from everyone else. Restore it from{" "}
+        <Link href="/admin/deleted" className="underline">
+          Deleted items
+        </Link>
+        .
+      </div>
+    </div>
+  );
+
   return (
-    <AppShell user={user}>
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pt-6 pb-10">
-        <LiveSync url={`/api/files/${node.id}/sync`} goneTo={node.parentId ? `/files/${node.parentId}` : "/files"} />
-        <header className="flex flex-col gap-2">
-          <nav className="flex flex-wrap items-center gap-1.5 text-[13px] text-[var(--ink-3)]" aria-label="Breadcrumb">
-            <Link href="/files" className="hover:text-[var(--ink)] hover:underline">
-              Files
-            </Link>
-            {crumbs.map((c) => (
-              <span key={c.id} className="flex items-center gap-1.5">
-                <span aria-hidden="true">›</span>
-                {c.id === node.id ? (
-                  <span className="text-[var(--ink)]">{displayName(c.name)}</span>
-                ) : (
-                  <Link href={`/files/${c.id}`} className="hover:text-[var(--ink)] hover:underline">
-                    {displayName(c.name)}
-                  </Link>
-                )}
-              </span>
-            ))}
-          </nav>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h1 className="page-title break-all">
-              {displayName(node.name)}
-              {isDeletedName(node.name) && <DeletedBadge />}
-            </h1>
-            <span className="flex items-center gap-3">
-              <span className="tag tag-mute">Your access: {isAdminRole(user.role) ? `${user.role} (everything)` : levelLabel(level)}</span>
-              {powers.canShare && <ShareButton id={node.id} />}
-            </span>
+    // The tree in the sidebar keeps the top folder of this path highlighted.
+    <>
+      <ActiveFolder id={crumbs[0]?.id} />
+      <LiveSync url={`/api/files/${node.id}/sync`} goneTo={parentHref} />
+      {node.kind === "file" ? (
+        <main className="flex w-full flex-col">
+          <FileHeader id={node.id} name={name} extn={node.extn} deleted={deleted} afterDelete={parentHref} crumbs={crumbList} accessLabel={accessLabel} {...powers} />
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-6 pb-10 sm:px-6">
+            {deletedAlert}
+            <FileDetails id={node.id} rawName={node.name} extn={node.extn} sizeBytes={node.sizeBytes} modifiedMs={node.modifiedMs} />
+            <ActivityList id={node.id} />
           </div>
-        </header>
-        {isDeletedName(node.name) && (
-          <div className="alert alert-bad">
-            <div>
-              <b>Deleted{deletedByFromName(node.name) ? ` by ${deletedByFromName(node.name)}` : ""}</b>
-              It&apos;s hidden from everyone else. Restore it from{" "}
-              <Link href="/admin/deleted" className="underline">
-                Deleted items
-              </Link>
-              .
-            </div>
-          </div>
-        )}
-
-        {node.kind === "file" ? (
-          <FileDetails id={node.id} rawName={node.name} extn={node.extn} sizeBytes={node.sizeBytes} modifiedMs={node.modifiedMs} parentId={node.parentId} powers={powers} />
-        ) : (
-          <FolderListing id={node.id} powers={powers} />
-        )}
-
-        <ActivityList id={node.id} />
-
-      </main>
-    </AppShell>
+        </main>
+      ) : (
+        <main className="flex min-h-screen w-full flex-col">
+          {deletedAlert && <div className="px-4 pt-4 sm:px-6">{deletedAlert}</div>}
+          <FolderListing
+            folder={{
+              id: node.id,
+              name,
+              deleted,
+              isRoot: node.kind === "root",
+              isTeamFolder: node.rootKind === "teamfolder",
+              parentHref,
+              accessLabel,
+              modifiedMs: node.modifiedMs,
+            }}
+            crumbs={crumbList}
+            powers={powers}
+          />
+        </main>
+      )}
+    </>
   );
 }
 
-async function FolderListing({ id, powers }: { id: string; powers: Powers }) {
+async function FolderListing({ folder, crumbs, powers }: { folder: FolderInfo; crumbs: Crumb[]; powers: Powers }) {
+  const id = folder.id;
   const children = await db().select().from(wdItems).where(eq(wdItems.parentId, id));
   // Deleted items are hidden from every listing; admins reach them through the Deleted items page.
   const visible = children
@@ -120,10 +114,10 @@ async function FolderListing({ id, powers }: { id: string; powers: Powers }) {
       changedInApp: Boolean(last ?? addedByFromName(c.name)),
     };
   });
-  return <FileBrowser folderId={id} rows={rows} {...powers} />;
+  return <FileBrowser folder={folder} crumbs={crumbs} rows={rows} activity={<ActivityFeed id={id} />} {...powers} />;
 }
 
-async function FileDetails(props: { id: string; rawName: string; extn: string | null; sizeBytes: number | null; modifiedMs: number | null; parentId: string | null; powers: Powers }) {
+async function FileDetails(props: { id: string; rawName: string; extn: string | null; sizeBytes: number | null; modifiedMs: number | null }) {
   const [versions, [item], who] = await Promise.all([
     listVersions(props.id).catch(() => null),
     db().select({ modifiedBy: wdItems.modifiedBy }).from(wdItems).where(eq(wdItems.id, props.id)),
@@ -132,7 +126,6 @@ async function FileDetails(props: { id: string; rawName: string; extn: string | 
   const mine = who.get(props.id);
   const name = displayName(props.rawName);
   const addedBy = addedByFromName(props.rawName);
-  const ext = (props.extn ?? name.split(".").pop() ?? "").toLowerCase();
   return (
     <section className="flex flex-col gap-6">
       <div className="board flex flex-col gap-5">
@@ -156,17 +149,6 @@ async function FileDetails(props: { id: string; rawName: string; extn: string | 
               </b>
             </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--rule)] pt-5">
-          <a href={`/api/files/${props.id}/download`} className="btn btn-primary btn-sm">
-            Download
-          </a>
-          {VIEWABLE.has(ext) && (
-            <a href={`/api/files/${props.id}/download?inline=1`} target="_blank" rel="noopener" className="btn btn-secondary btn-sm">
-              Open in browser
-            </a>
-          )}
-          <FileButtons id={props.id} name={name} extn={props.extn} deleted={isDeletedName(props.rawName)} afterDelete={props.parentId ? `/files/${props.parentId}` : "/files"} {...props.powers} />
         </div>
       </div>
 
@@ -210,6 +192,29 @@ async function FileDetails(props: { id: string; rawName: string; extn: string | 
         )}
       </section>
     </section>
+  );
+}
+
+/** The folder's activity as a compact feed, for the Details panel. */
+async function ActivityFeed({ id }: { id: string }) {
+  const rows = await history(id);
+  if (rows.length === 0) return <p className="m-0 text-[13px] text-[var(--ink-3)]">No activity yet. Uploads, renames and shares made here show up with who made them.</p>;
+  return (
+    <ol className="m-0 flex list-none flex-col gap-3 p-0">
+      {rows.slice(0, 30).map((r) => (
+        <li key={r.id} className="flex gap-2.5">
+          <span className="avatar h-7 w-7 text-[10.5px]">{initials(r.name)}</span>
+          <div className="min-w-0 text-[13px] leading-snug">
+            <span className="font-semibold text-[var(--ink)]">{r.name}</span>{" "}
+            <span className="text-[var(--ink-2)]">
+              {ACTION_LABELS[r.action] ?? r.action}
+              {describe(r.detail)}
+            </span>
+            <time className="block text-xs text-[var(--ink-3)]">{fmtTime(r.at)}</time>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 

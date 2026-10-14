@@ -1,14 +1,13 @@
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, deletedByFromName, displayName, wdItems, wdRoots } from "@/db";
-import { AppShell } from "@/components/app-shell";
 import { activityFor } from "@/lib/activity";
 import { requireAdmin } from "@/lib/auth";
 import { DeletedList, type DeletedRow } from "./deleted-list";
 
 export const metadata = { title: "Deleted items" };
-// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
-// meanwhile; the boundary is in the root layout.
+// The page reads the signed-in user, so it can't be instant; loading.tsx beside it shows
+// the loading page meanwhile.
 export const instant = false;
 
 export default function DeletedPage() {
@@ -55,7 +54,7 @@ async function Content() {
     .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return (
-    <AppShell user={me}>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
         <header>
           <p className="eyebrow">Administration</p>
@@ -67,6 +66,6 @@ async function Content() {
         </header>
         <DeletedList rows={rows} isSuperadmin={me.role === "superadmin"} />
       </main>
-    </AppShell>
+    </>
   );
 }
