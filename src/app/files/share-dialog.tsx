@@ -224,7 +224,7 @@ export function ShareButton({ id }: { id: string }) {
   const share = useShareDialog();
   return (
     <>
-      <button onClick={() => share.open(id)} className={button}>
+      <button onClick={() => share.open(id)} className="btn btn-primary btn-sm">
         Share
       </button>
       {share.element}

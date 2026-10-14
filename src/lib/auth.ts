@@ -97,7 +97,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.mustChangePassword) redirect("/account/password");
+  if (user.mustChangePassword) redirect("/account");
   return user;
 }
 

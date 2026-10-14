@@ -1,20 +1,20 @@
-import { asc, count, eq } from "drizzle-orm";
-import { Suspense } from "react";
-import { db, grants, isAdminRole, users } from "@/db";
+import { asc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { db, displayName, grants, isAdminRole, levelLabel, users, wdItems, wdRoots } from "@/db";
 import { AppShell } from "@/components/app-shell";
-import { buttonSecondary, fmtTime, input, Loading } from "@/components/ui";
+import { fmtTime } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { updateUserAction } from "./actions";
 import { CreateUserForm, ResetPasswordForm } from "./forms";
+import { SharesButton, type SharedItem } from "./shares-button";
 
 export const metadata = { title: "Users" };
+// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
+// meanwhile; the boundary is in the root layout.
+export const instant = false;
 
 export default function UsersPage() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Content />
-    </Suspense>
-  );
+  return <Content />;
 }
 
 async function Content() {
@@ -31,69 +31,136 @@ async function Content() {
       active: users.active,
       mustChangePassword: users.mustChangePassword,
       lastLoginAt: users.lastLoginAt,
-      shares: count(grants.id),
     })
     .from(users)
-    .leftJoin(grants, eq(grants.userId, users.id))
-    .groupBy(users.id)
     .orderBy(asc(users.role), asc(users.name));
+
+  // What each person has been given. A grant points at a team folder (wd_roots) or at a folder or file inside one (wd_items).
+  const itemRoot = alias(wdRoots, "item_root");
+  const grantRows = await db()
+    .select({
+      userId: grants.userId,
+      id: grants.resourceId,
+      level: grants.level,
+      itemName: wdItems.name,
+      isFolder: wdItems.isFolder,
+      extn: wdItems.extn,
+      rootName: wdRoots.name,
+      inRoot: itemRoot.name,
+    })
+    .from(grants)
+    .leftJoin(wdItems, eq(wdItems.id, grants.resourceId))
+    .leftJoin(wdRoots, eq(wdRoots.id, grants.resourceId))
+    .leftJoin(itemRoot, eq(itemRoot.id, wdItems.rootId));
+  const sharesOf = new Map<string, SharedItem[]>();
+  for (const g of grantRows) {
+    const item: SharedItem = {
+      id: g.id,
+      name: displayName(g.rootName ?? g.itemName ?? ""),
+      kind: g.rootName ? "teamfolder" : g.itemName === null ? "gone" : g.isFolder ? "folder" : "file",
+      extn: g.extn,
+      where: g.rootName ? null : g.inRoot && displayName(g.inRoot),
+      access: levelLabel(g.level),
+    };
+    sharesOf.set(g.userId, [...(sharesOf.get(g.userId) ?? []), item]);
+  }
+  sharesOf.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
 
   return (
     <AppShell user={me}>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8">
-        <section className="flex flex-col gap-3">
-          <h1 className="text-2xl font-semibold">Users</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
+        <header>
+          <p className="eyebrow">Administration</p>
+          <h1 className="page-title">Users</h1>
+          <p className="page-lead">
             Admins see and manage everything; deleting only marks items &quot;(Deleted)&quot;, which admins can restore. Superadmins can also delete permanently.
             Staff and external users see only what is shared with them (use Share on any folder or file). External users are capped at edit: they can never delete
             or move.
           </p>
+        </header>
+
+        <section className="board flex flex-col gap-4">
+          <h2 className="section-title">Add a person</h2>
           <CreateUserForm canCreateSuperadmin={isSuper} />
         </section>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="py-2 pr-4 font-normal">User</th>
-                <th className="py-2 pr-4 font-normal">Role / status</th>
-                <th className="py-2 pr-4 font-normal">Shares</th>
-                <th className="py-2 pr-4 font-normal">Last sign-in</th>
-                <th className="py-2 font-normal" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((u) => (
-                <tr key={u.id} className="border-t border-zinc-200 align-top dark:border-zinc-800">
-                  <td className="py-2 pr-4">
-                    {u.name}
-                    <div className="text-zinc-500">{u.email}</div>
-                    {u.mustChangePassword && <div className="text-xs text-amber-600">must set password</div>}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <form action={updateUserAction} className="flex flex-wrap items-center gap-2">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <select name="role" defaultValue={u.role} disabled={locked(u.id, u.role)} className={input}>
-                        {(isSuper || u.role === "superadmin") && <option value="superadmin">superadmin</option>}
-                        <option value="admin">admin</option>
-                        <option value="staff">staff</option>
-                        <option value="external">external</option>
-                      </select>
-                      <label className="flex items-center gap-1">
-                        <input type="checkbox" name="active" defaultChecked={u.active} disabled={locked(u.id, u.role)} /> active
-                      </label>
-                      {!locked(u.id, u.role) && <button className={buttonSecondary}>Save</button>}
-                    </form>
-                  </td>
-                  <td className="py-2 pr-4">{isAdminRole(u.role) ? "all" : u.shares}</td>
-                  <td className="py-2 pr-4 whitespace-nowrap">{fmtTime(u.lastLoginAt)}</td>
-                  <td className="py-2 text-right whitespace-nowrap">{!locked(u.id, u.role) && <ResetPasswordForm userId={u.id} />}</td>
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline gap-3">
+            <h2 className="section-title">Everyone</h2>
+            <span className="tag tag-mute">{rows.length}</span>
+          </div>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role / status</th>
+                  <th>Shares</th>
+                  <th>Last sign-in</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="cell-who">
+                        <span className="avatar">{initials(u.name)}</span>
+                        <div className="min-w-0">
+                          <span className="name whitespace-nowrap">{u.name}</span>
+                          <span className="sub whitespace-nowrap">{u.email}</span>
+                          {u.mustChangePassword && (
+                            <span className="tag tag-warn mt-1.5">
+                              <span className="dot" />
+                              Must set password
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <form action={updateUserAction} className="flex flex-nowrap items-center gap-2.5">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <select name="role" defaultValue={u.role} disabled={locked(u.id, u.role)} className="field-select field-xs w-[120px]" aria-label={`Role for ${u.name}`}>
+                          {(isSuper || u.role === "superadmin") && <option value="superadmin">Superadmin</option>}
+                          <option value="admin">Admin</option>
+                          <option value="staff">Staff</option>
+                          <option value="external">External</option>
+                        </select>
+                        <label className="switch switch-sm">
+                          <input type="checkbox" name="active" defaultChecked={u.active} disabled={locked(u.id, u.role)} /> Active
+                        </label>
+                        {!locked(u.id, u.role) && <button className="btn btn-secondary btn-xs">Save</button>}
+                      </form>
+                    </td>
+                    <td>{isAdminRole(u.role) ? <span className="tag tag-mute">All</span> : <SharesButton person={u.name} items={sharesOf.get(u.id) ?? []} />}</td>
+                    <td className="whitespace-nowrap">{u.lastLoginAt ? <SignIn at={u.lastLoginAt} /> : <span className="sub">Never</span>}</td>
+                    <td className="text-right whitespace-nowrap">{!locked(u.id, u.role) && <ResetPasswordForm userId={u.id} />}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </AppShell>
   );
+}
+
+/** "Oct 14, 2026" over "12:51 PM", so the column stays narrow. */
+function SignIn({ at }: { at: Date }) {
+  const full = fmtTime(at);
+  const cut = full.lastIndexOf(", ");
+  return (
+    <>
+      {full.slice(0, cut)}
+      <span className="sub">{full.slice(cut + 2)}</span>
+    </>
+  );
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : parts[0]?.[1];
+  return `${parts[0]?.[0] ?? ""}${last ?? ""}`.toUpperCase();
 }

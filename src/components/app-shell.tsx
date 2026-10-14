@@ -3,7 +3,8 @@
 import { useState, useSyncExternalStore } from "react";
 import type { CurrentUser } from "@/lib/auth";
 import { AppSidebar } from "./app-sidebar";
-import { IconMenu, IconWorkDriveLogo } from "./icons";
+import { DialogHost } from "./dialogs";
+import { GetmedsLogo, IconMenu } from "./icons";
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -53,6 +54,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <DialogHost />
       {/* Desktop Sticky Sidebar */}
       <div
         className={`hidden md:block md:shrink-0 sticky top-0 h-screen transition-[width] duration-200 ease-in-out ${
@@ -94,7 +96,7 @@ export function AppShell({
               <IconMenu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <IconWorkDriveLogo className="w-6 h-6 shrink-0" />
+              <GetmedsLogo className="w-6 h-6 shrink-0" />
               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 Getmeds Files
               </span>

@@ -25,13 +25,7 @@ export default async function LoginPage() {
       <section className="login-hero">
 
         <header className="login-hero-topbar">
-          <div className="login-hero-brand">
-            <span className="login-hero-wordmark">
-              <span className="login-hero-brand-name">GetMeds</span>
-              <span className="login-hero-brand-sub">Files</span>
-            </span>
-          </div>
-          {/* Company logos, beside the product name */}
+          {/* Company logos */}
           <div className="login-brand-pair">
             {COMPANY_LOGOS.map((logo, i) => (
               <Fragment key={logo.src}>

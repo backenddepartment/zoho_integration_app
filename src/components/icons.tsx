@@ -205,3 +205,14 @@ export function IconSidebar(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** The GetMeds cross mark on a white rounded tile, so its colours read on the dark sidebar. */
+export function GetmedsLogo({ className = "" }: { className?: string }) {
+  return (
+    <span className={`flex items-center justify-center rounded-lg bg-white shadow-sm ${className}`}>
+      {/* Sized against the tile (percent padding would follow the parent's width). */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- small static brand mark */}
+      <img src="/getmeds-mark.png" alt="" width={128} height={128} className="h-[72%] w-[72%] object-contain" />
+    </span>
+  );
+}

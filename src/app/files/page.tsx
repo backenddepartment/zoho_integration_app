@@ -1,8 +1,6 @@
 import { eq } from "drizzle-orm";
-import { Suspense } from "react";
 import { db, displayName, isAdminRole, levelLabel, LEVELS, zohoConnection } from "@/db";
 import { AppShell } from "@/components/app-shell";
-import { Loading } from "@/components/ui";
 import { entryPoints } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { CONNECTION_ID, ZOHO_SCOPES } from "@/lib/zoho/oauth";
@@ -10,13 +8,12 @@ import { LiveSync } from "./live-sync";
 import { PlacesBrowser } from "./places-browser";
 
 export const metadata = { title: "Files" };
+// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
+// meanwhile; the boundary is in the root layout.
+export const instant = false;
 
 export default function FilesHome() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Content />
-    </Suspense>
-  );
+  return <Content />;
 }
 
 async function Content() {

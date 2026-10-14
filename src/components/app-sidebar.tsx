@@ -6,16 +6,15 @@ import type { ComponentType, SVGProps } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { isAdminRole, type Role } from "@/db/roles";
 import type { CurrentUser } from "@/lib/auth";
+import { askConfirm } from "./dialogs";
 import {
   IconClose,
   IconFiles,
-  IconKey,
   IconSidebar,
   IconSignOut,
   IconTrash,
   IconUsers,
   IconWorkDrive,
-  IconWorkDriveLogo,
 } from "./icons";
 
 function getInitials(name: string) {
@@ -103,7 +102,7 @@ export function AppSidebar({
   const isUsersActive = pathname === "/admin/users" || pathname.startsWith("/admin/users/");
   const isDeletedActive = pathname === "/admin/deleted" || pathname.startsWith("/admin/deleted/");
   const isWorkDriveActive = pathname === "/admin";
-  const isPasswordActive = pathname === "/account/password";
+  const isProfileActive = pathname === "/account" || pathname.startsWith("/account/");
 
   const isAdmin = isAdminRole(user.role);
 
@@ -133,24 +132,15 @@ export function AppSidebar({
           collapsed ? "flex-col items-center gap-2 px-2 py-4" : "items-center justify-between gap-2 px-4 py-4"
         }`}
       >
-        <Link
-          href="/files"
-          onClick={onCloseMobile}
-          title={collapsed ? "Getmeds Files" : undefined}
-          className="flex min-w-0 items-center gap-2.5 group transition-transform active:scale-95"
-        >
-          <IconWorkDriveLogo className="w-8 h-8 shrink-0 drop-shadow-sm" />
-          {!collapsed && (
-            <div className="flex flex-col leading-tight min-w-0">
-              <span className="font-bold text-[15px] text-white tracking-tight group-hover:text-[#38BDF8] transition-colors">
-                Getmeds Files
-              </span>
-              <span className="text-xs text-slate-400 font-medium">
-                Zoho WorkDrive
-              </span>
-            </div>
-          )}
-        </Link>
+        {/* Name only; collapsed, the header holds just the expand button. */}
+        {!collapsed && (
+          <Link href="/files" onClick={onCloseMobile} className="flex min-w-0 flex-col leading-tight group">
+            <span className="font-semibold text-[15px] text-white tracking-tight group-hover:text-[#38BDF8] transition-colors">
+              Getmeds Files
+            </span>
+            <span className="text-xs text-slate-400 font-medium">Zoho WorkDrive</span>
+          </Link>
+        )}
         {toggleButton}
         {onCloseMobile && (
           <button
@@ -195,48 +185,42 @@ export function AppSidebar({
 
       {/* User Profile & Account Footer */}
       <div className={`mt-auto border-t border-[#243347] bg-[#141d2c]/85 pb-6 space-y-2.5 ${collapsed ? "px-2 pt-3.5" : "p-3.5"}`}>
-        {/* User identification */}
-        <div className={`flex items-center gap-2.5 py-1 ${collapsed ? "justify-center" : "px-1"}`}>
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#1EA0DA] to-[#12769F] text-xs font-semibold text-white shadow-sm ring-1 ring-white/20"
-            title={collapsed ? `${user.name} (${roleLabel(user.role)})` : undefined}
-          >
+        {/* User identification: opens the profile page (edit profile, change password) */}
+        <Link
+          href="/account"
+          onClick={onCloseMobile}
+          title={collapsed ? `${user.name} (${roleLabel(user.role)}): your profile` : "Your profile"}
+          aria-label={collapsed ? "Your profile" : undefined}
+          aria-current={isProfileActive ? "page" : undefined}
+          className={`flex items-center gap-2.5 rounded-lg py-1.5 transition-colors ${collapsed ? "justify-center px-1" : "px-1.5"} ${
+            isProfileActive ? "bg-[#1EA0DA]/20" : "hover:bg-white/[0.07]"
+          }`}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#1EA0DA] to-[#12769F] text-xs font-semibold text-white shadow-sm ring-1 ring-white/20">
             {getInitials(user.name)}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-semibold text-white truncate" title={user.name}>
-                {user.name}
-              </span>
+              <span className="text-xs font-semibold text-white truncate">{user.name}</span>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`text-[11px] font-medium ${roleTextClass(user.role)}`}>{roleLabel(user.role)}</span>
               </div>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* User actions */}
         <div className="flex flex-col gap-1 pt-1 border-t border-[#243347]/70">
-          <Link
-            href="/account/password"
-            onClick={onCloseMobile}
-            title={collapsed ? "Password" : undefined}
-            aria-label={collapsed ? "Password" : undefined}
-            className={`group flex items-center gap-2.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
-              collapsed ? "justify-center px-2" : "px-2.5"
-            } ${isPasswordActive ? "bg-[#1EA0DA]/20 text-white" : "text-slate-300 hover:text-white hover:bg-white/[0.07]"}`}
-          >
-            <IconKey
-              className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                isPasswordActive ? "text-[#1EA0DA]" : "text-slate-400 group-hover:text-slate-200"
-              }`}
-            />
-            {!collapsed && <span>Password</span>}
-          </Link>
-
           <form action={logoutAction} className="w-full">
             <button
               type="submit"
+              onClick={async (e) => {
+                // Hold the submit until the modal answers, then send the form ourselves.
+                e.preventDefault();
+                const form = e.currentTarget.form;
+                const ok = await askConfirm({ title: "Sign out?", message: "You'll need to sign in again to use Getmeds Files.", confirmLabel: "Sign out", danger: true });
+                if (ok) form?.requestSubmit();
+              }}
               title={collapsed ? "Sign out" : undefined}
               aria-label={collapsed ? "Sign out" : undefined}
               className={`group flex w-full items-center gap-2.5 rounded-md py-1.5 text-xs font-medium text-slate-300 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left ${

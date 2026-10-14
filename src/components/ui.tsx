@@ -1,3 +1,5 @@
+import { ProgressHold } from "./top-progress";
+
 // Shared class names so pages look consistent without a component library.
 
 export const input = "rounded border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900";
@@ -9,7 +11,12 @@ export const linkButton = "text-sm text-zinc-600 underline hover:text-zinc-900 d
 export const danger = "text-sm text-red-600 underline hover:text-red-800 disabled:opacity-50";
 
 export function Loading() {
-  return <p className="px-4 py-10 text-sm text-zinc-500">Loading…</p>;
+  return (
+    <p className="px-4 py-10 text-sm text-zinc-500">
+      <ProgressHold />
+      Loading…
+    </p>
+  );
 }
 
 export function fmtSize(n: number | null) {

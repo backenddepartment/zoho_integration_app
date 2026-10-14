@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/components/top-progress";
 import { useState, type MouseEvent } from "react";
 import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
+import { askText } from "@/components/dialogs";
+import { FileIcon } from "@/components/file-icon";
 import { FolderGrid, FolderTile } from "@/components/folder-tile";
-import { buttonSecondary } from "@/components/ui";
 import { isDeletedName } from "@/db/roles";
 import { DeletedBadge, deleteItems, useFileOps } from "./file-actions";
 import { useShareDialog } from "./share-dialog";
@@ -30,7 +31,7 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
   const [error, setError] = useState<string | null>(null);
 
   async function newTeamFolder() {
-    const name = window.prompt("New team folder name")?.trim();
+    const name = await askText({ title: "New team folder", label: "Name", placeholder: "e.g. Finance Department", confirmLabel: "Create" });
     if (!name) return;
     setCreating(true);
     setError(null);
@@ -51,7 +52,7 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
     const deleted = isDeletedName(p.name);
     const items: MenuItem[] = [{ label: "Open", onSelect: () => router.push(`/files/${p.id}`) }];
     if (p.kind === "file") items.push({ label: "Download", onSelect: () => startDownload(p.id) });
-    if (isAdmin && p.isTeamFolder && !deleted) items.push({ label: "Rename…", onSelect: () => ops.rename(target, "Rename team folder to") });
+    if (isAdmin && p.isTeamFolder && !deleted) items.push({ label: "Rename…", onSelect: () => ops.rename(target, "Rename team folder") });
     if (isAdmin || p.canShare) items.push({ label: "Share…", onSelect: () => share.open(p.id) });
     items.push({ label: "Copy link", onSelect: () => navigator.clipboard?.writeText(`${window.location.origin}/files/${p.id}`) });
     // My Folders can't be deleted; team folders only by admins; shared items by whoever manages them.
@@ -134,8 +135,9 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
                   className={`flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
                 >
                   <span className="truncate">
-                    <Link href={`/files/${p.id}`} className={`text-sm hover:underline ${deleted ? "line-through" : ""}`}>
-                      📄 {p.name}
+                    <Link href={`/files/${p.id}`} className={`inline-flex items-center gap-2.5 align-middle text-sm hover:underline ${deleted ? "line-through" : ""}`}>
+                      <FileIcon name={p.name} className="h-7 w-6" />
+                      {p.name}
                     </Link>
                     {deleted && <DeletedBadge />}
                   </span>

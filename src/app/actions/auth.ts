@@ -1,6 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, users } from "@/db";
 import { audit } from "@/lib/audit";
@@ -13,12 +14,29 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   const result = await login(String(formData.get("email") ?? ""), String(formData.get("password") ?? ""));
   if (!result.ok) return { error: result.error };
   await audit(result.user.email, "auth.login", null);
-  redirect(result.user.mustChangePassword ? "/account/password" : "/files");
+  redirect(result.user.mustChangePassword ? "/account" : "/files");
 }
 
 export async function logoutAction() {
   await logout();
   redirect("/login");
+}
+
+/** Changes the signed-in person's display name. The email is their sign-in, so only an admin changes that. */
+export async function updateProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: "Enter your name." };
+  if (name.length > 100) return { error: "Use 100 characters or fewer." };
+  if (name === user.name) return { ok: "Nothing to change." };
+
+  await db().update(users).set({ name }).where(eq(users.id, user.id));
+  await audit(user.email, "auth.profile_update", null, { from: user.name, to: name });
+  // The sidebar shows the name on every page.
+  revalidatePath("/", "layout");
+  return { ok: "Saved." };
 }
 
 export async function changePasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {

@@ -1,21 +1,18 @@
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { Suspense } from "react";
 import { db, deletedByFromName, displayName, wdItems, wdRoots } from "@/db";
 import { AppShell } from "@/components/app-shell";
-import { Loading } from "@/components/ui";
 import { activityFor } from "@/lib/activity";
 import { requireAdmin } from "@/lib/auth";
 import { DeletedList, type DeletedRow } from "./deleted-list";
 
 export const metadata = { title: "Deleted items" };
+// Navigating here waits for the page's data, keeping the previous page (and the loading line) up
+// meanwhile; the boundary is in the root layout.
+export const instant = false;
 
 export default function DeletedPage() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Content />
-    </Suspense>
-  );
+  return <Content />;
 }
 
 // Postgres regex equivalent of DELETED_PATTERN in src/db/roles.ts; keep the two in step.
@@ -59,12 +56,15 @@ async function Content() {
 
   return (
     <AppShell user={me}>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8">
-        <h1 className="text-2xl font-semibold">Deleted items</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Deleting renames an item in WorkDrive to &quot;(Deleted by name) …&quot; and hides it from everyone in this app. Restore puts the original name back.
-          {me.role === "superadmin" ? " As a superadmin you can also delete permanently." : " Only a superadmin can delete permanently."}
-        </p>
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
+        <header>
+          <p className="eyebrow">Administration</p>
+          <h1 className="page-title">Deleted items</h1>
+          <p className="page-lead">
+            Deleting renames an item in WorkDrive to &quot;(Deleted by name) …&quot; and hides it from everyone in this app. Restore puts the original name back.
+            {me.role === "superadmin" ? " As a superadmin you can also delete permanently." : " Only a superadmin can delete permanently."}
+          </p>
+        </header>
         <DeletedList rows={rows} isSuperadmin={me.role === "superadmin"} />
       </main>
     </AppShell>

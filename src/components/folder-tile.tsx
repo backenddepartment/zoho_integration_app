@@ -1,5 +1,46 @@
+"use client";
+
 import Link from "next/link";
-import { useId, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+
+/**
+ * A tile's name, cut to one line (or `lines={2}`). When it doesn't fit, hovering the tile (`.group`)
+ * shows the whole name in a small label floating over it, so the grid below doesn't move.
+ */
+export function TileName({ name, lines = 1, center = false, struck = false }: { name: string; lines?: 1 | 2; center?: boolean; struck?: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [clipped, setClipped] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setClipped(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [name]);
+
+  return (
+    <span className="relative block">
+      <span
+        ref={ref}
+        // line-clamp sets its own display, so `block` only goes with the one-line version.
+        className={`text-sm font-medium text-[var(--ink)] ${lines === 1 ? "block truncate" : "line-clamp-2 break-words"} ${center ? "text-center" : ""} ${struck ? "line-through" : ""}`}
+      >
+        {name}
+      </span>
+      {clipped && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute -inset-x-2 -top-1.5 z-20 hidden rounded-lg bg-[var(--canvas)] px-2 py-1.5 text-[12.5px] leading-snug font-medium break-words text-[var(--ink)] shadow-[0_8px_24px_rgba(0,0,0,0.14)] ring-1 ring-[var(--rule)] group-hover:block ${center ? "text-center" : ""}`}
+        >
+          {name}
+        </span>
+      )}
+    </span>
+  );
+}
 
 // [front, back] per colour; the back panel and tab are a shade darker than the front.
 const FOLDER_COLORS: [string, string][] = [
@@ -97,12 +138,8 @@ export function FolderTile({
           ⋮
         </button>
         <div className="min-w-0 px-0.5">
-          <Link
-            href={`/files/${id}`}
-            title={name}
-            className={`block truncate text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100 ${deleted ? "line-through" : ""}`}
-          >
-            {name}
+          <Link href={`/files/${id}`} className="block hover:underline">
+            <TileName name={name} struck={deleted} />
           </Link>
           {(detail || badge) && (
             <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-zinc-500">
@@ -119,3 +156,76 @@ export function FolderTile({
   export function FolderGrid({ children }: { children: ReactNode }) {
     return <ul className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-5 gap-y-6">{children}</ul>;
   }
+
+/** A small folder in the same colour as its tile on the Files pages. */
+export function FolderGlyph({ id }: { id: string }) {
+  const [front, back] = folderColor(id);
+  return (
+    <svg viewBox="0 0 32 26" className="h-7 w-8 shrink-0" aria-hidden="true">
+      <rect x="1" y="1" width="13" height="7" rx="2.5" fill={back} />
+      <rect x="1" y="4" width="30" height="21" rx="3.5" fill={back} />
+      <rect x="1" y="9" width="30" height="16" rx="3.5" fill={front} />
+    </svg>
+  );
+}
+
+/** A folder as a Google Drive-style card for list view: small folder, name, a detail line and ⋮, on a tint of the folder's colour. */
+export function FolderChip({
+  id,
+  name,
+  detail,
+  deleted = false,
+  badge,
+  onOptions,
+  onContextMenu,
+  onDoubleClick,
+}: {
+  id: string;
+  name: string;
+  detail?: ReactNode;
+  deleted?: boolean;
+  badge?: ReactNode;
+  onOptions: (e: MouseEvent<HTMLButtonElement>) => void;
+  onContextMenu: (e: MouseEvent) => void;
+  onDoubleClick: () => void;
+}) {
+  const [front] = folderColor(id);
+  return (
+    <li
+      data-row
+      onContextMenu={onContextMenu}
+      onDoubleClick={onDoubleClick}
+      style={{ "--chip": front } as CSSProperties}
+      className={`group relative flex items-center rounded-2xl bg-[color-mix(in_srgb,var(--chip)_13%,var(--canvas))] transition-colors hover:bg-[color-mix(in_srgb,var(--chip)_21%,var(--canvas))] ${deleted ? "opacity-50" : ""}`}
+    >
+      <Link href={`/files/${id}`} title={name} className="flex min-w-0 flex-1 items-center gap-3.5 py-3.5 pr-2 pl-4">
+        <FolderGlyph id={id} />
+        <span className="min-w-0">
+          <span className={`line-clamp-2 text-sm font-medium break-words text-[var(--ink)] ${deleted ? "line-through" : ""}`}>{name}</span>
+          {(detail || badge) && (
+            <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-[var(--ink-3)]">
+              {detail}
+              {badge}
+            </span>
+          )}
+        </span>
+      </Link>
+      <button
+        aria-label={`Options for ${name}`}
+        onClick={onOptions}
+        className="mr-2 shrink-0 rounded-full p-1.5 text-[var(--ink-2)] hover:bg-[color-mix(in_srgb,var(--chip)_28%,var(--canvas))]"
+      >
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="12" cy="19" r="1.8" />
+        </svg>
+      </button>
+    </li>
+  );
+}
+
+/** The grid the folder cards sit in (list view). */
+export function FolderChipGrid({ children }: { children: ReactNode }) {
+  return <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4 p-0">{children}</ul>;
+}

@@ -19,11 +19,11 @@ export function SyncButton({ disabled }: { disabled: boolean }) {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button onClick={start} disabled={disabled || busy} className="rounded bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">
-        Scan WorkDrive now
+    <div className="flex flex-wrap items-center gap-3">
+      <button onClick={start} disabled={disabled || busy} className="btn btn-primary btn-sm">
+        {busy ? "Starting…" : "Scan WorkDrive now"}
       </button>
-      {message && <span className="text-sm text-zinc-600 dark:text-zinc-400">{message}</span>}
+      {message && <span className="text-sm text-[var(--ink-3)]">{message}</span>}
     </div>
   );
 }

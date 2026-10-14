@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/components/top-progress";
 import { useRef, useState, type DragEvent, type MouseEvent } from "react";
 import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
-import { FolderGrid, FolderTile } from "@/components/folder-tile";
-import { buttonSecondary, danger, fmtSize, fmtTime, linkButton } from "@/components/ui";
+import { askChoice, askConfirm, askText, askTyped, notify } from "@/components/dialogs";
+import { FolderChip, FolderChipGrid, FolderGrid, FolderTile } from "@/components/folder-tile";
+import { fmtTime } from "@/components/ui";
 import { isDeletedName, isZohoNative } from "@/db/roles";
+import { FileIconTiles, FileList, useFileView, ViewToggle } from "./file-views";
 import { useShareDialog } from "./share-dialog";
 
 export type Row = {
@@ -51,8 +52,8 @@ export function useFileOps(folderId: string | null) {
     router.refresh();
   };
 
-  const newFolder = () => {
-    const name = window.prompt("New folder name")?.trim();
+  const newFolder = async () => {
+    const name = await askText({ title: "New folder", label: "Name", placeholder: "Untitled folder", confirmLabel: "Create" });
     if (!name || !folderId) return;
     return run("Creating folder…", async () => {
       const r = await call(`/api/files/${folderId}/children`, json("POST", { name }));
@@ -69,13 +70,16 @@ export function useFileOps(folderId: string | null) {
     };
     let r = await send();
     if (r.status === 409 && r.body.conflict) {
-      if (window.confirm(`"${file.name}" already exists here.\n\nOK: save it as a new version of the existing file.\nCancel: choose whether to keep both.`)) {
-        r = await send("version");
-      } else if (window.confirm("Keep both? The upload will be saved under a new name.")) {
-        r = await send("copy");
-      } else {
-        return null;
-      }
+      const choice = await askChoice({
+        title: "File already exists",
+        message: `"${file.name}" is already in this folder. Replace it with a new version, or keep both under different names?`,
+        choices: [
+          { label: "Keep both", value: "copy" },
+          { label: "Replace (new version)", value: "version", primary: true },
+        ],
+      });
+      if (choice !== "version" && choice !== "copy") return null;
+      r = await send(choice);
     }
     if (r.ok && r.body.convertedToZoho) {
       return `${file.name}: uploaded, but WorkDrive converted it to a Zoho document (its "Convert all files to Zoho WorkDrive's format on upload" setting is on), so it can't be downloaded as the original file.`;
@@ -96,8 +100,8 @@ export function useFileOps(folderId: string | null) {
     });
   };
 
-  const rename = (t: Target, label = "Rename to") => {
-    const name = window.prompt(label, t.name)?.trim();
+  const rename = async (t: Target, title = "Rename") => {
+    const name = await askText({ title, label: "New name", initial: t.name, confirmLabel: "Rename" });
     if (!name || name === t.name) return;
     return run("Renaming…", async () => {
       const r = await call(`/api/files/${t.id}`, json("PATCH", { name }));
@@ -106,9 +110,15 @@ export function useFileOps(folderId: string | null) {
   };
 
   /** Marks the item "(Deleted) name" in WorkDrive; admins can restore it. */
-  const remove = (t: Target, after?: string) => {
+  const remove = async (t: Target, after?: string) => {
     const what = t.isFolder ? `the folder "${t.name}" and everything in it` : `"${t.name}"`;
-    if (!window.confirm(`Delete ${what}?\n\nIt disappears from this app, and in WorkDrive it is renamed "(Deleted by <your name>) ${t.name}". An admin can restore it from Deleted items.`)) return;
+    const ok = await askConfirm({
+      title: t.isFolder ? "Delete folder?" : "Delete file?",
+      message: `This deletes ${what}. It disappears from this app, and in WorkDrive it is renamed "(Deleted by <your name>) ${t.name}". An admin can restore it from Deleted items.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     return run(
       "Deleting…",
       async () => {
@@ -126,18 +136,27 @@ export function useFileOps(folderId: string | null) {
     });
 
   /** Superadmin only: removes the item from WorkDrive for good. Team folders require typing the name. */
-  const purge = (t: Target & { isTeamFolder?: boolean }, after?: string) => {
+  const purge = async (t: Target & { isTeamFolder?: boolean }, after?: string) => {
     const headers: Record<string, string> = {};
     if (t.isTeamFolder) {
-      const typed = window.prompt(
-        `PERMANENTLY delete the team folder "${t.name}" and everything in it?\n\nOnly a Zoho team admin can restore it, from WorkDrive's Admin Console, within your retention period.\n\nType the folder's exact name to confirm:`,
-      );
-      if (typed === null) return;
-      if (typed !== t.name) return window.alert("The name didn't match. Nothing was deleted.");
+      const ok = await askTyped({
+        title: "Permanently delete team folder?",
+        message: `This deletes the team folder "${t.name}" and everything in it from WorkDrive. Only a Zoho team admin can restore it, from WorkDrive's Admin Console, within your retention period.`,
+        label: `Type "${t.name}" to confirm`,
+        phrase: t.name,
+        confirmLabel: "Delete permanently",
+      });
+      if (!ok) return;
       headers["X-Confirm-Name"] = encodeURIComponent(t.name);
     } else {
       const what = t.isFolder ? `the folder "${t.name}" and everything in it` : `"${t.name}"`;
-      if (!window.confirm(`PERMANENTLY delete ${what}?\n\nThis removes it from WorkDrive. It can't be restored from this app.`)) return;
+      const ok = await askConfirm({
+        title: "Delete permanently?",
+        message: `This removes ${what} from WorkDrive. It can't be restored from this app.`,
+        confirmLabel: "Delete permanently",
+        danger: true,
+      });
+      if (!ok) return;
     }
     return run(
       "Deleting permanently…",
@@ -152,16 +171,28 @@ export function useFileOps(folderId: string | null) {
   /** Replace a file's content with one picked from the computer; WorkDrive keeps the old one as a version. */
   const newVersion = (t: Target & { extn: string | null }) => {
     if (isZohoNative(t.extn)) {
-      return window.alert("This is a Zoho document (WorkDrive converted it when it was uploaded), so it can't take a new version from a file. Edit it in WorkDrive instead.");
+      return void notify({
+        title: "Can't upload a new version",
+        message: "This is a Zoho document (WorkDrive converted it when it was uploaded), so it can't take a new version from a file. Edit it in WorkDrive instead.",
+      });
     }
     const picker = document.createElement("input");
     picker.type = "file";
-    picker.onchange = () => {
+    picker.onchange = async () => {
       const file = picker.files?.[0];
       if (!file) return;
       const want = (t.extn ?? t.name.split(".").pop() ?? "").toLowerCase();
       const got = (file.name.split(".").pop() ?? "").toLowerCase();
-      if (want && got !== want && !window.confirm(`"${t.name}" is a .${want} file but you picked a .${got} file. Upload it as the new version anyway?`)) return;
+      if (
+        want &&
+        got !== want &&
+        !(await askConfirm({
+          title: "Different file type",
+          message: `"${t.name}" is a .${want} file but you picked a .${got} file. Upload it as the new version anyway?`,
+          confirmLabel: "Upload anyway",
+        }))
+      )
+        return;
       run(`Uploading new version of ${t.name}…`, async () => {
         // No X-Base-Modified: the person is deliberately replacing whatever is there now.
         const r = await call(`/api/files/${t.id}/content`, { method: "PUT", body: file });
@@ -230,6 +261,30 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
 
   const folders = rows.filter((r) => r.isFolder);
   const files = rows.filter((r) => !r.isFolder);
+  const view = useFileView();
+  const fileHandlers = {
+    onContextMenu: (row: Row, e: MouseEvent) => {
+      e.preventDefault();
+      openMenu(e.clientX, e.clientY, itemMenu(row));
+    },
+    onOptions: (row: Row, e: MouseEvent<HTMLButtonElement>) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
+    },
+    onOpen: (row: Row) => router.push(`/files/${row.id}`),
+    badge: (row: Row) => (isDeletedName(row.name) ? <DeletedBadge /> : null),
+  };
+  // Shared by the folder tiles (large icons) and the folder cards (list).
+  const folderProps = (row: Row) => ({
+    id: row.id,
+    name: row.name,
+    detail: row.modifiedMs !== null && fmtTime(row.modifiedMs),
+    deleted: isDeletedName(row.name),
+    badge: isDeletedName(row.name) && <DeletedBadge />,
+    onContextMenu: (e: MouseEvent) => fileHandlers.onContextMenu(row, e),
+    onDoubleClick: () => fileHandlers.onOpen(row),
+    onOptions: (e: MouseEvent<HTMLButtonElement>) => fileHandlers.onOptions(row, e),
+  });
 
   const onBlankContext = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-row]")) return;
@@ -260,10 +315,10 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
       <div className="flex flex-wrap items-center gap-3">
         {canEdit && (
           <>
-            <button onClick={() => ops.newFolder()} disabled={ops.busy !== null} className={buttonSecondary}>
+            <button onClick={() => ops.newFolder()} disabled={ops.busy !== null} className="btn btn-secondary btn-sm">
               New folder
             </button>
-            <button onClick={() => fileInput.current?.click()} disabled={ops.busy !== null} className={buttonSecondary}>
+            <button onClick={() => fileInput.current?.click()} disabled={ops.busy !== null} className="btn btn-secondary btn-sm">
               Upload files
             </button>
           </>
@@ -280,94 +335,37 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
         />
         {ops.busy && <span className="text-sm text-zinc-500">{ops.busy}</span>}
         <span className="ml-auto hidden text-xs text-zinc-500 sm:inline">Right-click for options{canEdit ? " · drop files to upload" : ""}</span>
+        <ViewToggle view={view} />
         {ops.error && <pre className="w-full text-sm whitespace-pre-wrap text-red-600">{ops.error}</pre>}
       </div>
 
       <div
         onContextMenu={onBlankContext}
         {...dragProps}
-        className={`flex min-h-[50vh] flex-col gap-6 overflow-x-auto rounded border ${dragging ? "border-dashed border-blue-500 bg-blue-50 dark:bg-blue-950/40" : "border-transparent"}`}
+        className={`flex min-h-32 flex-col gap-6 overflow-x-auto rounded border ${dragging ? "border-dashed border-blue-500 bg-blue-50 dark:bg-blue-950/40" : "border-transparent"}`}
       >
-        {folders.length > 0 && (
-          <FolderGrid>
-            {folders.map((row) => (
-              <FolderTile
-                key={row.id}
-                id={row.id}
-                name={row.name}
-                detail={row.modifiedMs !== null && fmtTime(row.modifiedMs)}
-                deleted={isDeletedName(row.name)}
-                badge={isDeletedName(row.name) && <DeletedBadge />}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  openMenu(e.clientX, e.clientY, itemMenu(row));
-                }}
-                onDoubleClick={() => router.push(`/files/${row.id}`)}
-                onOptions={(e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
-                }}
-              />
-            ))}
-          </FolderGrid>
-        )}
-        {files.length > 0 && (
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="py-2 pr-4 pl-2 font-normal">Name</th>
-                <th className="py-2 pr-4 font-normal">Size</th>
-                <th className="py-2 pr-4 font-normal">Last change</th>
-                <th className="w-10 py-2 font-normal" />
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((row) => {
-                const deleted = isDeletedName(row.name);
-                return (
-                  <tr
-                    key={row.id}
-                    data-row
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      openMenu(e.clientX, e.clientY, itemMenu(row));
-                    }}
-                    onDoubleClick={() => router.push(`/files/${row.id}`)}
-                    className={`border-t border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
-                  >
-                    <td className="py-2 pr-4 pl-2">
-                      <Link href={`/files/${row.id}`} className={`hover:underline ${deleted ? "line-through" : ""}`}>
-                        📄 {row.name}
-                      </Link>
-                      {deleted && <DeletedBadge />}
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{isZohoNative(row.extn) ? <span className="text-zinc-500">Zoho document</span> : fmtSize(row.sizeBytes)}</td>
-                    <td className="py-2 pr-4">
-                      <div className="whitespace-nowrap">{fmtTime(row.modifiedMs)}</div>
-                      {row.changedBy && (
-                        <div className="text-xs text-zinc-500" title={row.changedInApp ? "Recorded by this app" : "As reported by WorkDrive (the connected account)"}>
-                          by {row.changedBy}
-                          {!row.changedInApp && " (WorkDrive)"}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-1 text-right">
-                      <button
-                        aria-label={`Options for ${row.name}`}
-                        onClick={(e) => {
-                          const r = e.currentTarget.getBoundingClientRect();
-                          openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
-                        }}
-                        className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                      >
-                        ⋯
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {view === "icons" ? (
+          // Large icons: folders then files in one grid, so files carry on right after the last folder.
+          rows.length > 0 && (
+            <FolderGrid>
+              {folders.map((row) => (
+                <FolderTile key={row.id} {...folderProps(row)} />
+              ))}
+              <FileIconTiles files={files} {...fileHandlers} />
+            </FolderGrid>
+          )
+        ) : (
+          // List: Drive-style folder cards, then the file list.
+          <>
+            {folders.length > 0 && (
+              <FolderChipGrid>
+                {folders.map((row) => (
+                  <FolderChip key={row.id} {...folderProps(row)} />
+                ))}
+              </FolderChipGrid>
+            )}
+            {files.length > 0 && <FileList files={files} {...fileHandlers} />}
+          </>
         )}
         {rows.length === 0 && <p className="p-3 text-sm text-zinc-500">This folder is empty.{canEdit && " Right-click here or drop files to add something."}</p>}
       </div>
@@ -388,27 +386,27 @@ export function FileButtons(props: { id: string; name: string; extn: string | nu
   return (
     <span className="inline-flex flex-wrap items-center gap-3">
       {props.canEdit && !deleted && !isZohoNative(props.extn) && (
-        <button onClick={() => ops.newVersion({ ...t, extn: props.extn })} disabled={ops.busy !== null} className={linkButton}>
+        <button onClick={() => ops.newVersion({ ...t, extn: props.extn })} disabled={ops.busy !== null} className="btn btn-secondary btn-sm">
           Upload new version
         </button>
       )}
       {props.canEdit && !deleted && (
-        <button onClick={() => ops.rename(t)} disabled={ops.busy !== null} className={linkButton}>
+        <button onClick={() => ops.rename(t)} disabled={ops.busy !== null} className="btn btn-secondary btn-sm">
           Rename
         </button>
       )}
       {deleted && props.isAdmin && (
-        <button onClick={() => ops.restore(t)} disabled={ops.busy !== null} className={linkButton}>
+        <button onClick={() => ops.restore(t)} disabled={ops.busy !== null} className="btn btn-secondary btn-sm">
           Restore
         </button>
       )}
       {!deleted && props.canManage && (
-        <button onClick={() => ops.remove(t, props.afterDelete)} disabled={ops.busy !== null} className={danger}>
+        <button onClick={() => ops.remove(t, props.afterDelete)} disabled={ops.busy !== null} className="btn btn-danger btn-sm">
           Delete
         </button>
       )}
       {props.isSuperadmin && (
-        <button onClick={() => ops.purge(t, props.afterDelete)} disabled={ops.busy !== null} className={danger}>
+        <button onClick={() => ops.purge(t, props.afterDelete)} disabled={ops.busy !== null} className="btn btn-danger btn-sm">
           Delete permanently
         </button>
       )}
