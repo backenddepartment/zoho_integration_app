@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type MouseEvent } from "react";
 import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
+import { FolderGrid, FolderTile } from "@/components/folder-tile";
 import { buttonSecondary } from "@/components/ui";
 import { isDeletedName } from "@/db/roles";
 import { DeletedBadge, deleteItems, useFileOps } from "./file-actions";
@@ -66,6 +67,8 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
   };
 
   const problem = error ?? ops.error;
+  const folders = places.filter((p) => p.kind !== "file");
+  const files = places.filter((p) => p.kind === "file");
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -88,44 +91,72 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
         <span className="ml-auto hidden text-xs text-zinc-500 sm:inline">Right-click for options</span>
         {problem && <p className="w-full text-sm text-red-600">{problem}</p>}
       </div>
-      <div onContextMenu={onBlank} className="min-h-[50vh]">
-        <ul className="divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-          {places.map((p) => {
-            const deleted = isDeletedName(p.name);
-            return (
-              <li
-                key={p.id}
-                data-row
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  openMenu(e.clientX, e.clientY, itemMenu(p));
-                }}
-                onDoubleClick={() => router.push(`/files/${p.id}`)}
-                className={`flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
-              >
-                <span className="truncate">
-                  <Link href={`/files/${p.id}`} className={`text-sm hover:underline ${deleted ? "line-through" : ""}`}>
-                    {p.kind === "file" ? "📄" : "📁"} {p.name}
-                  </Link>
-                  {deleted && <DeletedBadge />}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-zinc-500">{p.access}</span>
-                  <button
-                    aria-label={`Options for ${p.name}`}
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      openMenu(r.right - 192, r.bottom + 4, itemMenu(p));
-                    }}
-                    className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                  >
-                    ⋯
-                  </button>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+      <div onContextMenu={onBlank} className="flex min-h-[50vh] flex-col gap-6">
+        {folders.length > 0 && (
+          <FolderGrid>
+            {folders.map((p) => {
+              const deleted = isDeletedName(p.name);
+              return (
+                <FolderTile
+                  key={p.id}
+                  id={p.id}
+                  name={p.name}
+                  detail={p.access}
+                  deleted={deleted}
+                  badge={deleted && <DeletedBadge />}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openMenu(e.clientX, e.clientY, itemMenu(p));
+                  }}
+                  onDoubleClick={() => router.push(`/files/${p.id}`)}
+                  onOptions={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    openMenu(r.right - 192, r.bottom + 4, itemMenu(p));
+                  }}
+                />
+              );
+            })}
+          </FolderGrid>
+        )}
+        {files.length > 0 && (
+          <ul className="divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {files.map((p) => {
+              const deleted = isDeletedName(p.name);
+              return (
+                <li
+                  key={p.id}
+                  data-row
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openMenu(e.clientX, e.clientY, itemMenu(p));
+                  }}
+                  onDoubleClick={() => router.push(`/files/${p.id}`)}
+                  className={`flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
+                >
+                  <span className="truncate">
+                    <Link href={`/files/${p.id}`} className={`text-sm hover:underline ${deleted ? "line-through" : ""}`}>
+                      📄 {p.name}
+                    </Link>
+                    {deleted && <DeletedBadge />}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-zinc-500">{p.access}</span>
+                    <button
+                      aria-label={`Options for ${p.name}`}
+                      onClick={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        openMenu(r.right - 192, r.bottom + 4, itemMenu(p));
+                      }}
+                      className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    >
+                      ⋯
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
       {share.element}
     </section>

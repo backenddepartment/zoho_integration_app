@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { CurrentUser } from "@/lib/auth";
 import { AppSidebar } from "./app-sidebar";
 import { IconMenu, IconWorkDriveLogo } from "./icons";
@@ -13,6 +13,33 @@ function getInitials(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
+// Whether the desktop sidebar is collapsed to icons. Kept in this browser so it survives page changes
+// and reloads; storage can be unavailable (private mode, blocked site data), so it then just stays open.
+const SIDEBAR_KEY = "sidebar-collapsed";
+const sidebarListeners = new Set<() => void>();
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  } catch {}
+  sidebarListeners.forEach((notify) => notify());
+}
+
+function subscribeSidebar(notify: () => void) {
+  sidebarListeners.add(notify);
+  return () => {
+    sidebarListeners.delete(notify);
+  };
+}
+
 export function AppShell({
   user,
   children,
@@ -21,12 +48,18 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // The server renders it open; the stored choice applies once the page hydrates.
+  const collapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => false);
 
   return (
     <div className="flex min-h-screen w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       {/* Desktop Sticky Sidebar */}
-      <div className="hidden md:block md:w-64 md:shrink-0 sticky top-0 h-screen">
-        <AppSidebar user={user} />
+      <div
+        className={`hidden md:block md:shrink-0 sticky top-0 h-screen transition-[width] duration-200 ease-in-out ${
+          collapsed ? "md:w-16" : "md:w-64"
+        }`}
+      >
+        <AppSidebar user={user} collapsed={collapsed} onToggleCollapsed={() => writeSidebarCollapsed(!collapsed)} />
       </div>
 
       {/* Mobile Drawer Backdrop */}

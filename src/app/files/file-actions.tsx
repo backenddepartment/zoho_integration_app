@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type DragEvent, type MouseEvent } from "react";
 import { ContextMenuProvider, startDownload, useContextMenu, type MenuItem } from "@/components/context-menu";
+import { FolderGrid, FolderTile } from "@/components/folder-tile";
 import { buttonSecondary, danger, fmtSize, fmtTime, linkButton } from "@/components/ui";
 import { isDeletedName, isZohoNative } from "@/db/roles";
 import { useShareDialog } from "./share-dialog";
@@ -227,6 +228,9 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
     return items;
   };
 
+  const folders = rows.filter((r) => r.isFolder);
+  const files = rows.filter((r) => !r.isFolder);
+
   const onBlankContext = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-row]")) return;
     e.preventDefault();
@@ -282,64 +286,89 @@ function FileBrowserInner({ folderId, rows, ...powers }: { folderId: string; row
       <div
         onContextMenu={onBlankContext}
         {...dragProps}
-        className={`min-h-[50vh] overflow-x-auto rounded border ${dragging ? "border-dashed border-blue-500 bg-blue-50 dark:bg-blue-950/40" : "border-transparent"}`}
+        className={`flex min-h-[50vh] flex-col gap-6 overflow-x-auto rounded border ${dragging ? "border-dashed border-blue-500 bg-blue-50 dark:bg-blue-950/40" : "border-transparent"}`}
       >
-        <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="text-zinc-500">
-            <tr>
-              <th className="py-2 pr-4 pl-2 font-normal">Name</th>
-              <th className="py-2 pr-4 font-normal">Size</th>
-              <th className="py-2 pr-4 font-normal">Last change</th>
-              <th className="w-10 py-2 font-normal" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const deleted = isDeletedName(row.name);
-              return (
-                <tr
-                  key={row.id}
-                  data-row
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    openMenu(e.clientX, e.clientY, itemMenu(row));
-                  }}
-                  onDoubleClick={() => router.push(`/files/${row.id}`)}
-                  className={`border-t border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
-                >
-                  <td className="py-2 pr-4 pl-2">
-                    <Link href={`/files/${row.id}`} className={`hover:underline ${deleted ? "line-through" : ""}`}>
-                      {row.isFolder ? "📁" : "📄"} {row.name}
-                    </Link>
-                    {deleted && <DeletedBadge />}
-                  </td>
-                  <td className="py-2 pr-4 whitespace-nowrap">{row.isFolder ? "" : isZohoNative(row.extn) ? <span className="text-zinc-500">Zoho document</span> : fmtSize(row.sizeBytes)}</td>
-                  <td className="py-2 pr-4">
-                    <div className="whitespace-nowrap">{fmtTime(row.modifiedMs)}</div>
-                    {row.changedBy && (
-                      <div className="text-xs text-zinc-500" title={row.changedInApp ? "Recorded by this app" : "As reported by WorkDrive (the connected account)"}>
-                        by {row.changedBy}
-                        {!row.changedInApp && " (WorkDrive)"}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-1 text-right">
-                    <button
-                      aria-label={`Options for ${row.name}`}
-                      onClick={(e) => {
-                        const r = e.currentTarget.getBoundingClientRect();
-                        openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
-                      }}
-                      className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                    >
-                      ⋯
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {folders.length > 0 && (
+          <FolderGrid>
+            {folders.map((row) => (
+              <FolderTile
+                key={row.id}
+                id={row.id}
+                name={row.name}
+                detail={row.modifiedMs !== null && fmtTime(row.modifiedMs)}
+                deleted={isDeletedName(row.name)}
+                badge={isDeletedName(row.name) && <DeletedBadge />}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openMenu(e.clientX, e.clientY, itemMenu(row));
+                }}
+                onDoubleClick={() => router.push(`/files/${row.id}`)}
+                onOptions={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
+                }}
+              />
+            ))}
+          </FolderGrid>
+        )}
+        {files.length > 0 && (
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="py-2 pr-4 pl-2 font-normal">Name</th>
+                <th className="py-2 pr-4 font-normal">Size</th>
+                <th className="py-2 pr-4 font-normal">Last change</th>
+                <th className="w-10 py-2 font-normal" />
+              </tr>
+            </thead>
+            <tbody>
+              {files.map((row) => {
+                const deleted = isDeletedName(row.name);
+                return (
+                  <tr
+                    key={row.id}
+                    data-row
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openMenu(e.clientX, e.clientY, itemMenu(row));
+                    }}
+                    onDoubleClick={() => router.push(`/files/${row.id}`)}
+                    className={`border-t border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
+                  >
+                    <td className="py-2 pr-4 pl-2">
+                      <Link href={`/files/${row.id}`} className={`hover:underline ${deleted ? "line-through" : ""}`}>
+                        📄 {row.name}
+                      </Link>
+                      {deleted && <DeletedBadge />}
+                    </td>
+                    <td className="py-2 pr-4 whitespace-nowrap">{isZohoNative(row.extn) ? <span className="text-zinc-500">Zoho document</span> : fmtSize(row.sizeBytes)}</td>
+                    <td className="py-2 pr-4">
+                      <div className="whitespace-nowrap">{fmtTime(row.modifiedMs)}</div>
+                      {row.changedBy && (
+                        <div className="text-xs text-zinc-500" title={row.changedInApp ? "Recorded by this app" : "As reported by WorkDrive (the connected account)"}>
+                          by {row.changedBy}
+                          {!row.changedInApp && " (WorkDrive)"}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-1 text-right">
+                      <button
+                        aria-label={`Options for ${row.name}`}
+                        onClick={(e) => {
+                          const r = e.currentTarget.getBoundingClientRect();
+                          openMenu(r.right - 192, r.bottom + 4, itemMenu(row));
+                        }}
+                        className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      >
+                        ⋯
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
         {rows.length === 0 && <p className="p-3 text-sm text-zinc-500">This folder is empty.{canEdit && " Right-click here or drop files to add something."}</p>}
       </div>
       {share.element}
