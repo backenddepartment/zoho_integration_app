@@ -1,7 +1,7 @@
 import { asc, count, eq } from "drizzle-orm";
 import { Suspense } from "react";
 import { db, grants, isAdminRole, users } from "@/db";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { buttonSecondary, fmtTime, input, Loading } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { updateUserAction } from "./actions";
@@ -39,8 +39,7 @@ async function Content() {
     .orderBy(asc(users.role), asc(users.name));
 
   return (
-    <>
-      <AppHeader user={me} />
+    <AppShell user={me}>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8">
         <section className="flex flex-col gap-3">
           <h1 className="text-2xl font-semibold">Users</h1>
@@ -95,6 +94,6 @@ async function Content() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

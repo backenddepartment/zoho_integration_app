@@ -70,7 +70,12 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         {isAdmin && (
-          <button onClick={newTeamFolder} disabled={creating} className={buttonSecondary}>
+          <button
+            onClick={newTeamFolder}
+            disabled={creating}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-60"
+            style={{ backgroundColor: "#1D9FDA" }}
+          >
             {creating ? "Creating…" : "New team folder"}
           </button>
         )}
@@ -99,7 +104,7 @@ function Inner({ places, isAdmin, isSuperadmin, needsReconnect }: { places: Plac
                 className={`flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 ${deleted ? "text-zinc-400 dark:text-zinc-500" : ""}`}
               >
                 <span className="truncate">
-                  <Link href={`/files/${p.id}`} className={`hover:underline ${deleted ? "line-through" : ""}`}>
+                  <Link href={`/files/${p.id}`} className={`text-sm hover:underline ${deleted ? "line-through" : ""}`}>
                     {p.kind === "file" ? "📄" : "📁"} {p.name}
                   </Link>
                   {deleted && <DeletedBadge />}

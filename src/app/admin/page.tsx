@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { auditLog, db, syncRuns, zohoConnection } from "@/db";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { fmtTime, Loading } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { CONNECTION_ID, ZOHO_SCOPES } from "@/lib/zoho/oauth";
@@ -36,8 +36,7 @@ async function Content({ searchParams }: Pick<PageProps<"/admin">, "searchParams
   const activity = await db().select().from(auditLog).orderBy(desc(auditLog.id)).limit(50);
 
   return (
-    <>
-      <AppHeader user={me} />
+    <AppShell user={me}>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8">
         <h1 className="text-2xl font-semibold">WorkDrive</h1>
 
@@ -116,6 +115,6 @@ async function Content({ searchParams }: Pick<PageProps<"/admin">, "searchParams
           </div>
         </section>
       </main>
-    </>
+    </AppShell>
   );
 }

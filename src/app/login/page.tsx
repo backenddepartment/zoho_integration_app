@@ -1,13 +1,69 @@
+import { cacheLife } from "next/cache";
+import { Fragment } from "react";
+import { poppins } from "./font";
 import { LoginForm } from "./login-form";
+import "./login.css";
 
 export const metadata = { title: "Sign in" };
 
-export default function LoginPage() {
+const COMPANY_LOGOS = [
+  { src: "/getmeds-logo.png", alt: "GetMEDS", width: 600, height: 337 },
+  { src: "/2mg-logo.png", alt: "2MG Inc.", width: 400, height: 156 },
+];
+
+// cacheComponents forbids a bare new Date() during prerender; a daily refresh is plenty for the year.
+async function currentYear() {
+  "use cache";
+  cacheLife("days");
+  return new Date().getFullYear();
+}
+
+export default async function LoginPage() {
   return (
-    <main className="mx-auto w-full max-w-sm px-4 py-24">
-      <h1 className="mb-1 text-2xl font-semibold">Getmeds Files</h1>
-      <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">Sign in with the account your administrator gave you.</p>
-      <LoginForm />
-    </main>
+    <div className={`login-page ${poppins.variable}`}>
+      {/* Hero: brand and illustration on the left, headline and form card on the right. */}
+      <section className="login-hero">
+
+        <header className="login-hero-topbar">
+          <div className="login-hero-brand">
+            <span className="login-hero-wordmark">
+              <span className="login-hero-brand-name">GetMeds</span>
+              <span className="login-hero-brand-sub">Files</span>
+            </span>
+          </div>
+          {/* Company logos, beside the product name */}
+          <div className="login-brand-pair">
+            {COMPANY_LOGOS.map((logo, i) => (
+              <Fragment key={logo.src}>
+                {i > 0 && <span className="login-brand-sep" aria-hidden="true" />}
+                {/* eslint-disable-next-line @next/next/no-img-element -- small static logos */}
+                <img src={logo.src} width={logo.width} height={logo.height} decoding="async" alt={logo.alt} className="login-brand-logo" />
+              </Fragment>
+            ))}
+          </div>
+        </header>
+
+        <div className="login-hero-art" aria-hidden="true" />
+
+        <div className="login-hero-inner">
+          <div className="login-hero-copy">
+            <h2 className="login-hero-title">
+              Company files, <span className="login-hero-title-accent">in one place.</span>
+            </h2>
+            <p className="login-hero-sub">
+              Browse, upload and share the GetMEDS and 2MG files kept in Zoho WorkDrive — no Zoho account needed.
+            </p>
+          </div>
+
+          <main className="login-card">
+            <div className="login-card-body">
+              <LoginForm />
+            </div>
+          </main>
+        </div>
+
+        <p className="login-hero-copyright">© {await currentYear()} workdrive.getmeds.ph. All Rights Reserved.</p>
+      </section>
+    </div>
   );
 }

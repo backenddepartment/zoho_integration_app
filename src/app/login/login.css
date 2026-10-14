@@ -1,0 +1,520 @@
+/* GetMeds shared login page (from the HR Portal's login kit).
+   Self-contained: every design value it needs is declared below on the login
+   elements themselves, so it looks the same whatever the host app's own CSS is.
+   Font: Poppins via next/font (./font.ts). Images: /getmeds-logo.png and
+   /2mg-logo.png from public/, the illustration from ../assets/loginbg.png. */
+
+.login-page,
+.login-toast {
+  --font: var(--font-poppins), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bg:               #FFFFFF;
+  --bg-secondary:     rgba(0, 0, 0, 0.025);
+  --border:           rgba(0, 0, 0, 0.09);
+  --border-dark:      rgba(0, 0, 0, 0.16);
+  --text:             #000000;
+  --text-secondary:   rgba(0, 0, 0, 0.62);
+  --text-tertiary:    rgba(0, 0, 0, 0.46);
+  --brand-blue:       #1EA0DA;
+  --brand-blue-ink:   #12769F;
+  --brand-green-700:  #4A8033;
+  --brand-green-800:  #3F6F2C;
+  --error:            #B3312C;
+  --error-light:      rgba(179, 49, 44, 0.08);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.login-page *,
+.login-page *::before,
+.login-page *::after { box-sizing: border-box; }
+
+.login-page button,
+.login-page input { font-family: inherit; font-size: inherit; }
+
+/* The page is full-bleed; a default body margin would add a scrollbar. */
+body:has(.login-page) { margin: 0; }
+
+/* Login. --ui is the single scale knob: a viewport-driven font-size on the page, everything inside in em.
+   Layout: one screen in two halves (brand and illustration left, headline and form card right). */
+.login-page {
+  /* Capped by the window's height too, so the whole page always fits on one screen without scrolling. */
+  --ui: clamp(12px, min(1.3vw, 2.45vh), 18px);
+  --login-muted:  var(--text-secondary);
+  --login-faint:  var(--text-tertiary);
+  font-size: var(--ui);
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────── */
+.login-hero {
+  position: relative;
+  /* Fills the viewport, so the whole page fits on one screen; on a window too
+     short for the card the page grows and scrolls instead of crushing the form. */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: clamp(2em, 4vw, 5em);
+  padding: 1.1em clamp(1.5em, 5vw, 5em) 1.75em;
+}
+
+/* Left half: brand on top, the illustration (transparent PNG) filling the rest */
+.login-hero-topbar {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 2.25em;
+  padding-bottom: 0.75em;
+}
+
+.login-hero-art {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  background: url('../assets/loginbg.png') center / contain no-repeat;
+}
+
+.login-hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+}
+
+.login-hero-brandlogo {
+  width: 2.8em;
+  height: auto;
+  flex: none;
+}
+
+.login-hero-wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.login-hero-brand-name {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.login-hero-brand-sub {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--brand-blue-ink);
+}
+
+/* Right half: headline and card, centred top to bottom over the full height */
+.login-hero-inner {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6em;
+  /* The headline and the card read a step larger than the rest of the page. */
+  font-size: 1.12em;
+}
+
+/* Headline stacked above the card, both the card's width; wide enough that the tagline and the
+   card's subtitle each take one line fewer, which keeps the page within one screen. */
+.login-hero-copy { flex: none; width: 100%; max-width: 30em; color: var(--text); }
+
+/* One line, sized to the card's width (30em) */
+.login-hero-title {
+  margin: 0 0 0.35em;
+  font-size: 1.5em;
+  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.login-hero-title-accent { color: var(--brand-blue); }
+
+.login-hero-sub {
+  margin: 0;
+  max-width: 30em;
+  font-size: 0.85em;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.login-hero-copyright {
+  position: absolute;
+  left: clamp(1.5em, 5vw, 5em); /* under the illustration, clear of the card */
+  bottom: 1.1em;
+  margin: 0;
+  font-size: 0.68em;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+/* ── Form card ────────────────────────────────────────────────────── */
+.login-card {
+  flex: none;
+  width: 100%;
+  max-width: 30em;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 1.5em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+  padding: 2.1em 2.5em 2.1em;
+}
+
+.login-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  animation: loginStepIn 0.28s ease both;
+}
+
+@keyframes loginStepIn {
+  from { opacity: 0; transform: translateY(0.4em); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Company logos side by side in the topbar, in full colour, separated by a hairline */
+.login-brand-pair {
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  flex: none;
+}
+
+.login-brand-sep { width: 1px; height: 2.4em; background: var(--border-dark); flex: none; }
+
+.login-brand-logo {
+  width: 5.5em;
+  height: auto;
+  object-fit: contain;
+  flex: none;
+}
+
+/* ── Heading ──────────────────────────────────────────────────────── */
+.login-step-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 0.1em;
+  margin-bottom: 1.5em;
+}
+
+.login-step-title {
+  font-size: 1.5em;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0;
+  color: var(--text);
+}
+
+.login-step-subtitle,
+.login-step-subtext {
+  margin: 0;
+  font-size: 0.8em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.7;
+  color: var(--login-muted);
+}
+
+.login-step-subtext {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.8em;
+  font-weight: 400;
+}
+
+/* ── Form ─────────────────────────────────────────────────────────── */
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.login-form .login-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+
+/* The field labels used to be screen-reader-only; in the card they render as
+   the reference design's small captions above each input ("Your Email"). */
+.login-page .login-label {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  border: 0;
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--login-faint);
+  text-align: left;
+}
+
+.login-page .login-input {
+  width: 100%;
+  padding: 0.8em 1.2em;
+  border: 1px solid var(--border-dark);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.875em;
+  font-weight: 500;
+  text-align: left;
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.login-page .login-input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 0.95em;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.login-page .login-input:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 0.25em rgba(30, 160, 218, 0.15);
+}
+
+.login-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-password-wrap .login-input {
+  padding-right: 3em;  /* room for the eye toggle; the left edge matches the field above */
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.9em;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.35em;
+  border-radius: 50%;
+  color: rgba(0, 0, 0, 0.45);
+  transition: color 0.12s, background 0.12s;
+}
+
+.login-password-toggle:hover {
+  color: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.login-otp-input.login-input {
+  font-size: 1.375em;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  padding-left: 1.5em; /* re-centres the tracked digits */
+}
+
+.login-hint {
+  font-size: 0.72em;
+  color: var(--login-faint);
+  letter-spacing: 0.02em;
+  display: inline-block;
+}
+
+.login-error {
+  width: 100%;
+  background: var(--error-light);
+  border: 1px solid rgba(179, 49, 44, 0.3);
+  color: var(--error);
+  border-radius: 0.6em;
+  padding: 0.7em 0.9em;
+  font-size: 0.8em;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* Login-page error toast: portaled to <body> so no animated ancestor can capture
+   its fixed position; slides down into the top-right, level with the topbar logos. */
+.login-toast {
+  position: fixed;
+  top: 22px;
+  right: clamp(20px, 6vw, 96px);
+  z-index: 1000;
+  max-width: min(calc(100vw - 32px), 460px);
+  padding: 10px 16px;
+  border: 1px solid rgba(179, 49, 44, 0.3);
+  border-radius: 10px;
+  background: #fdf1f0;
+  color: var(--error);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  animation: loginToastSlide 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes loginToastSlide {
+  from { opacity: 0; transform: translateY(-200%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  margin-top: 0.5em;
+  padding: 0.9em 1em;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.92em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  cursor: pointer;
+  background: #1D9FDA;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.login-submit-btn:hover:not(:disabled) { background: #1790c5; }
+.login-submit-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.login-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  display: inline-block;
+  animation: login-spinner-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes login-spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Secondary actions ────────────────────────────────────────────── */
+.login-switch {
+  margin-top: 1.1em;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5em;
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--login-faint);
+}
+
+.login-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--brand-blue-ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.3em;
+  transition: text-decoration-color 0.15s ease;
+}
+
+.login-link-btn:hover { text-decoration-color: currentColor; }
+.login-link-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.login-back-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-bottom: 1.5em;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--login-muted);
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.login-back-btn:hover { color: var(--brand-blue-ink); }
+
+.login-page .login-spinner { width: 1em; height: 1em; }
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  /* The right half gets narrower than the headline's one line */
+  .login-hero-title { white-space: normal; }
+}
+
+@media (max-width: 900px) {
+  /* No room for the illustration: drop it for a light tint and centre one column. */
+  .login-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    background: linear-gradient(180deg, #e8f5fc 0%, #f7fbfe 100%);
+  }
+  .login-hero-art { display: none; }
+  .login-hero-inner {
+    grid-row: 2;
+    grid-column: 1;
+    align-items: stretch;
+    gap: 2em;
+    width: 100%;
+    max-width: 30em;
+    margin: 0 auto;
+    padding: 1em 0 2em;
+  }
+  .login-hero-copy { max-width: none; text-align: center; }
+  .login-hero-title { font-size: 1.55em; white-space: normal; }
+  .login-hero-sub { margin: 0 auto; }
+  .login-card { max-width: none; }
+}
+
+@media (max-width: 640px) {
+  .login-page { --ui: clamp(13px, 3.8vw, 16px); }
+  .login-hero { padding: 1.5em 1.25em 3.5em; min-height: 100dvh; }
+  .login-card { padding: 1.8em 1.4em; }
+  .login-hero-topbar { flex-wrap: wrap; row-gap: 0.75em; }
+  .login-brand-logo { width: 4.5em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card-body { animation: none !important; }
+  .login-toast { animation: none !important; }
+  .login-spinner { animation: none !important; }
+}
+
+/* "Remember me" checkbox rows */
+.login-remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin: 2px 0 10px; cursor: pointer; }
+.login-remember input { width: 15px; height: 15px; accent-color: var(--brand-green-700); }

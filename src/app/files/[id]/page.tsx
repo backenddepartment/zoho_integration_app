@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { addedByFromName, db, deletedByFromName, displayName, isAdminRole, isDeletedName, isZohoNative, levelLabel, LEVELS, wdItems } from "@/db";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { fmtSize, fmtTime, Loading } from "@/components/ui";
 import { breadcrumb, effectiveLevel, getNode } from "@/lib/access";
 import { ACTION_LABELS, activityFor, history } from "@/lib/activity";
@@ -42,8 +42,7 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
   };
 
   return (
-    <>
-      <AppHeader user={user} />
+    <AppShell user={user}>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-8">
         <LiveSync url={`/api/files/${node.id}/sync`} goneTo={node.parentId ? `/files/${node.parentId}` : "/files"} />
         <nav className="flex flex-wrap items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -93,7 +92,7 @@ async function Content({ params }: Pick<PageProps<"/files/[id]">, "params">) {
         <ActivityList id={node.id} />
 
       </main>
-    </>
+    </AppShell>
   );
 }
 

@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Suspense } from "react";
 import { db, deletedByFromName, displayName, wdItems, wdRoots } from "@/db";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { Loading } from "@/components/ui";
 import { activityFor } from "@/lib/activity";
 import { requireAdmin } from "@/lib/auth";
@@ -58,8 +58,7 @@ async function Content() {
     .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return (
-    <>
-      <AppHeader user={me} />
+    <AppShell user={me}>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8">
         <h1 className="text-2xl font-semibold">Deleted items</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -68,6 +67,6 @@ async function Content() {
         </p>
         <DeletedList rows={rows} isSuperadmin={me.role === "superadmin"} />
       </main>
-    </>
+    </AppShell>
   );
 }
