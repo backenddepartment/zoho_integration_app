@@ -22,8 +22,8 @@ async function Content() {
   const [row] = await db().select({ lastLoginAt: users.lastLoginAt, createdAt: users.createdAt }).from(users).where(eq(users.id, user.id));
   const role = user.role.charAt(0).toUpperCase() + user.role.slice(1);
 
-  const passwordCard = (
-    <section className="board flex flex-col gap-4 p-5" id="password">
+  const passwordSection = (
+    <section className="flex flex-col gap-4 border-t border-[var(--rule)] py-8" id="password">
       <div>
         <h2 className="m-0 text-base font-semibold text-[var(--ink)]">Change password</h2>
         <p className="m-0 mt-0.5 text-xs text-[var(--ink-3)]">
@@ -34,29 +34,8 @@ async function Content() {
     </section>
   );
 
-  const profileCard = (
-    <section className="board flex flex-col items-center gap-3 p-5 text-center">
-      <span className="avatar h-16 w-16 text-xl">{initials(user.name)}</span>
-      <div className="min-w-0 max-w-full">
-        <h2 className="m-0 truncate text-base font-semibold text-[var(--ink)]">{user.name}</h2>
-        <p className="m-0 truncate text-xs text-[var(--ink-3)]">{user.email}</p>
-      </div>
-      <span className="tag tag-info">{role}</span>
-      <div className="facts mt-1 w-full grid-cols-1 text-left">
-        <div>
-          <small>Last sign-in</small>
-          <b className="text-[13px]">{row?.lastLoginAt ? fmtTime(row.lastLoginAt) : "—"}</b>
-        </div>
-        <div>
-          <small>Member since</small>
-          <b className="text-[13px]">{row ? fmtTime(row.createdAt) : "—"}</b>
-        </div>
-      </div>
-    </section>
-  );
-
-  const editCard = (
-    <section className="board flex flex-col gap-4 p-5">
+  const editSection = (
+    <section className="flex flex-col gap-4 border-t border-[var(--rule)] py-8">
       <div>
         <h2 className="m-0 text-base font-semibold text-[var(--ink)]">Edit profile</h2>
         <p className="m-0 mt-0.5 text-xs text-[var(--ink-3)]">Your name shows in the sidebar and next to the changes you make.</p>
@@ -67,14 +46,15 @@ async function Content() {
 
   return (
     <>
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 pt-6 pb-8">
-        <header>
+      {/* One column, top to bottom: who you are, then the forms, split by rules rather than cards. */}
+      <main className="flex w-full flex-col px-6 pt-6 pb-8">
+        <header className="pb-6">
           <p className="eyebrow">Account</p>
           <h1 className="page-title">Your profile</h1>
         </header>
 
         {user.mustChangePassword && (
-          <div className="alert alert-warn" role="status">
+          <div className="alert alert-warn mb-6" role="status">
             <div>
               <b>Set your password first</b>
               You signed in with a temporary password. Choose your own before using the rest of the app.
@@ -82,12 +62,29 @@ async function Content() {
           </div>
         )}
 
-        {/* Three cards side by side, so the whole page fits on one screen. */}
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          {profileCard}
-          {user.mustChangePassword ? passwordCard : editCard}
-          {user.mustChangePassword ? editCard : passwordCard}
-        </div>
+        {/* Spans the full width in four columns: who you are over the left half (lined up with the
+            forms' first column), the two dates sharing the right half. */}
+        <section className="grid items-center gap-x-8 gap-y-5 pb-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex min-w-0 items-center gap-4 sm:col-span-2">
+            <span className="avatar h-16 w-16 shrink-0 text-xl">{initials(user.name)}</span>
+            <div className="min-w-0">
+              <h2 className="m-0 truncate text-base font-semibold text-[var(--ink)]">{user.name}</h2>
+              <p className="m-0 truncate text-xs text-[var(--ink-3)]">{user.email}</p>
+              <span className="tag tag-info mt-1.5">{role}</span>
+            </div>
+          </div>
+          <div>
+            <p className="m-0 text-xs text-[var(--ink-3)]">Last sign-in</p>
+            <p className="m-0 mt-0.5 text-[13px] font-semibold text-[var(--ink)]">{row?.lastLoginAt ? fmtTime(row.lastLoginAt) : "—"}</p>
+          </div>
+          <div>
+            <p className="m-0 text-xs text-[var(--ink-3)]">Member since</p>
+            <p className="m-0 mt-0.5 text-[13px] font-semibold text-[var(--ink)]">{row ? fmtTime(row.createdAt) : "—"}</p>
+          </div>
+        </section>
+
+        {user.mustChangePassword ? passwordSection : editSection}
+        {user.mustChangePassword ? editSection : passwordSection}
       </main>
     </>
   );

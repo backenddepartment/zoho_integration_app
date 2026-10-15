@@ -7,11 +7,14 @@ export function PasswordForm() {
   const [state, action, pending] = useActionState(changePasswordAction, undefined);
   return (
     <form action={action} className="flex flex-col gap-3">
-      <label className="field">
-        <span className="field-label">Current password</span>
-        <input name="current" type="password" autoComplete="current-password" required className="field-input field-sm" />
-      </label>
-      <div className="flex flex-col gap-3">
+      {/* Two columns: the current password on its own row (half width), then new and confirm. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="field">
+          <span className="field-label">Current password</span>
+          <input name="current" type="password" autoComplete="current-password" required className="field-input field-sm" />
+        </label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="field">
           <span className="field-label">New password</span>
           <input name="next" type="password" autoComplete="new-password" minLength={10} required className="field-input field-sm" />

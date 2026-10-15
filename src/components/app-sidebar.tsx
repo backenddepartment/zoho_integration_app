@@ -226,7 +226,8 @@ export function AppSidebar({
 
       {/* Navigation Sections */}
       {/* Navigation, laid out like WorkDrive's: home, My Folders, then the Team Folders tree */}
-      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 ${collapsed ? "px-2" : "px-2.5"}`}>
+      {/* A thin gray scrollbar on the sidebar's own background, not the browser's white one. */}
+      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 [scrollbar-width:thin] [scrollbar-color:#4b5563_transparent] ${collapsed ? "px-2" : "px-2.5"}`}>
         <NavItem href="/files" label={isAdmin ? "All files" : "Home"} icon={IconHome} active={isHomeActive} collapsed={collapsed} onNavigate={onCloseMobile} />
         {myFolders.map((p) => (
           <NavItem

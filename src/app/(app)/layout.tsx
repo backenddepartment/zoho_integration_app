@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
-import { LoadingScreen } from "@/components/loading-screen";
+import { FrameLoadingScreen } from "@/components/loading-screen";
 import { getCurrentUser } from "@/lib/auth";
 
 // The signed-in part of the app. The sidebar and top bar live here, in a layout shared by every
@@ -11,7 +11,7 @@ import { getCurrentUser } from "@/lib/auth";
 export default function SignedInLayout({ children }: { children: React.ReactNode }) {
   return (
     // Reading the session can't be prerendered, so the frame streams in behind this on first load.
-    <Suspense fallback={<LoadingScreen title="Signing you in" steps={["Connecting", "Session", "Ready"]} fullPage />}>
+    <Suspense fallback={<FrameLoadingScreen title="Signing you in" steps={["Connecting", "Session", "Ready"]} />}>
       <Frame>{children}</Frame>
     </Suspense>
   );

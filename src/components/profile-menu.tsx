@@ -55,7 +55,7 @@ export function ProfileMenu({ user }: { user: CurrentUser }) {
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 z-50 mt-2 w-72 animate-dialog-in overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--canvas)] shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
+          className="absolute top-full left-0 z-50 md:left-auto md:right-0 mt-2 w-72 animate-dialog-in overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--canvas)] shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
         >
           <div className="flex flex-col items-center gap-2 bg-[var(--tint)] px-5 pt-6 pb-5 text-center">
             <span className="avatar h-16 w-16 text-lg">{getInitials(user.name)}</span>

@@ -56,6 +56,20 @@ body {
     from { background-position: -60% 0; }
     to   { background-position: 160% 0; }
   }
+
+  /* The loading pages' stepper (AutoStepper in src/components/stepper.tsx): each state fades in,
+     and each line fills, after its own animation-delay. CSS, so it runs before the page hydrates. */
+  --animate-step-in: step-in 200ms ease-out both;
+  --animate-step-fill: step-fill 300ms ease-out both;
+
+  @keyframes step-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes step-fill {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
 }
 
 /* A step's tick popping in (src/components/stepper.tsx) */

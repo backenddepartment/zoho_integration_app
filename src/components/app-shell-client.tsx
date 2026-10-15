@@ -5,7 +5,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { useActiveFolder } from "./active-folder";
 import { AppSidebar } from "./app-sidebar";
 import { DialogHost } from "./dialogs";
-import { GetmedsLogo, IconMenu } from "./icons";
+import { IconMenu } from "./icons";
 import { ProfileMenu } from "./profile-menu";
 
 // Whether the desktop sidebar is collapsed to icons. Kept in this browser so it survives page changes
@@ -68,8 +68,8 @@ export function AppShellClient({ user, nav, children }: { user: CurrentUser; nav
 
       {/* Mobile Drawer Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out md:hidden shadow-2xl ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out md:hidden ${
+          mobileOpen ? "translate-x-0 shadow-lg" : "-translate-x-full"
         }`}
       >
         <AppSidebar user={user} nav={nav} activeId={activeId} onCloseMobile={() => setMobileOpen(false)} />
@@ -77,27 +77,25 @@ export function AppShellClient({ user, nav, children }: { user: CurrentUser; nav
 
       {/* Main Content Pane */}
       <div className="flex flex-1 min-w-0 flex-col">
-        {/* Top bar: the menu button and name on phones; the profile in the top-right corner everywhere */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[var(--rule)] bg-[var(--canvas)]/95 px-4 backdrop-blur sm:px-6">
-          <div className="flex items-center gap-3 md:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-1.5 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 focus:outline-none"
-              aria-label="Open sidebar menu"
-            >
-              <IconMenu className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <GetmedsLogo className="w-6 h-6 shrink-0" />
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Getmeds Files
-              </span>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
+        {/* Top bar. Phones: the profile on the left, the name beside it, the menu button on the right.
+            Wider screens: just the profile, in the top-right corner. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--rule)] bg-[var(--canvas)]/95 px-4 backdrop-blur sm:px-6">
+          <div className="md:ml-auto">
             <ProfileMenu user={user} />
           </div>
+          <span className="text-sm leading-tight font-medium text-zinc-900 md:hidden dark:text-zinc-100">
+            Getmeds
+            <br />
+            Files
+          </span>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="ml-auto rounded-lg p-1.5 text-zinc-700 hover:bg-zinc-100 focus:outline-none md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800"
+            aria-label="Open sidebar menu"
+          >
+            <IconMenu className="w-5 h-5" />
+          </button>
         </header>
 
         {/* Inner Page View */}
