@@ -96,6 +96,10 @@ Browser → Next.js server (permissions, audit log) → Zoho WorkDrive API (boss
 | `src/app/files` | File browser and the admin-only Sharing panel |
 | `src/app/admin` | WorkDrive connection, scan, activity log; `admin/users` manages accounts |
 
+### Scheduled scans
+
+`vercel.json` runs `/api/cron/sync` twice a day: `0 22 * * *` and `0 7 * * *` UTC, which are **6:00 AM and 3:00 PM Philippine time** (UTC+8). Set `CRON_SECRET` in the Vercel project's environment variables, or every scheduled call gets a 401. Scheduled runs appear in the activity log with actor `cron`. If a scan is already running, that scheduled run is skipped. On the Hobby plan Vercel can start a job any time within its scheduled hour, so 6:00 might actually run at 6:40.
+
 ### Zoho limits to keep in mind
 
 - **Refresh-token limit.** A refresh token can create only 10 access tokens per 10 minutes, so the app caches the access token in the database and refreshes it about 5 minutes before it expires.

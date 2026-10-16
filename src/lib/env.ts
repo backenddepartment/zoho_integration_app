@@ -25,6 +25,8 @@ const schema = z.object({
   ZOHO_DOWNLOAD_URL: z.string().url().default("https://download.zoho.com/v1/workdrive"),
   TOKEN_ENCRYPTION_KEY: base64Key,
   SESSION_SECRET: z.string().min(32),
+  // Vercel sends this as a Bearer token on scheduled calls to /api/cron/sync. Unset = cron refused.
+  CRON_SECRET: z.string().optional().transform((v) => v || undefined),
 });
 
 let cached: z.infer<typeof schema> | undefined;
