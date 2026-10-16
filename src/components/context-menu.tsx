@@ -27,12 +27,17 @@ export function MenuButton({
   icon,
   primary = false,
   disabled = false,
+  compact = false,
+  className = "",
 }: {
   label: string;
   items: MenuItem[];
   icon?: ReactNode;
   primary?: boolean;
   disabled?: boolean;
+  /** On phones, just the icon and arrow (the label stays for screen readers). */
+  compact?: boolean;
+  className?: string;
 }) {
   const open = useContextMenu();
   return (
@@ -44,10 +49,11 @@ export function MenuButton({
         const r = e.currentTarget.getBoundingClientRect();
         open(primary ? r.right - 192 : r.left, r.bottom + 6, items);
       }}
-      className={`btn btn-sm gap-1.5 ${primary ? "btn-primary !bg-[var(--brand)] hover:!bg-[var(--accent-deep)] !text-white" : "btn-secondary !border-[var(--outline)]"}`}
+      aria-label={label}
+      className={`btn btn-sm shrink-0 gap-1.5 ${className} ${primary ? "btn-primary !bg-[var(--brand)] hover:!bg-[var(--accent-deep)] !text-white" : "btn-secondary !border-[var(--outline)]"}`}
     >
       {icon}
-      {label}
+      <span className={compact ? "max-sm:sr-only" : undefined}>{label}</span>
       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 opacity-80" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="m6 9 6 6 6-6" />
       </svg>

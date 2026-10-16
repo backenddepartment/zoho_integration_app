@@ -367,23 +367,32 @@ function FileBrowserInner({ folder, crumbs, rows, activity, ...powers }: { folde
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex flex-col gap-2 border-b border-[var(--rule)] px-4 pt-4 pb-2 sm:px-6">
-        {/* Title row: the folder and its Manage menu; New on the right */}
-        <div className="flex flex-wrap items-center gap-3">
-          <FolderGlyph id={folder.id} />
-          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-[var(--ink)]" title={folder.name}>
-            {folder.name}
-          </h1>
-          {folder.deleted && <DeletedBadge />}
-          <MenuButton label="Manage" items={manageItems} icon={<GearIcon />} />
-          <span className="ml-auto flex items-center gap-2">
-            {ops.busy && <span className="text-sm text-[var(--ink-3)]">{ops.busy}</span>}
-            {canEdit && !folder.deleted && <MenuButton label="New" items={newItems} icon={<span className="text-base leading-none">+</span>} primary disabled={ops.busy !== null} />}
+        {/* Title row: the folder and its Manage menu; New on the right. On phones the name has its
+            own line, with Manage and New sharing the line under it. */}
+        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+          <span className="flex min-w-0 items-center gap-2 max-sm:w-full sm:gap-3">
+            <span className="shrink-0">
+              <FolderGlyph id={folder.id} />
+            </span>
+            <h1 className="min-w-0 truncate text-lg sm:text-xl font-semibold tracking-tight text-[var(--ink)]" title={folder.name}>
+              {folder.name}
+            </h1>
+            {folder.deleted && <DeletedBadge />}
+          </span>
+          <MenuButton label="Manage" items={manageItems} icon={<GearIcon />} className="max-sm:flex-1" />
+          <span className={`flex shrink-0 items-center gap-2 sm:ml-auto ${canEdit && !folder.deleted ? "max-sm:flex-1" : ""}`}>
+            {ops.busy && <span className="hidden text-sm text-[var(--ink-3)] sm:inline">{ops.busy}</span>}
+            {canEdit && !folder.deleted && (
+              <MenuButton label="New" items={newItems} icon={<span className="text-base leading-none">+</span>} primary disabled={ops.busy !== null} className="max-sm:flex-1" />
+            )}
           </span>
         </div>
-        {/* Path row: where you are; sort, view and details on the right */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Breadcrumb crumbs={crumbs} />
-          <span className="ml-auto flex items-center gap-1">
+        {/* Path row: where you are; sort, view and details on the right, never pushed off screen */}
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Breadcrumb crumbs={crumbs} />
+          </div>
+          <span className="flex shrink-0 items-center gap-1">
             <span className="mr-1 hidden text-xs text-[var(--ink-3)] lg:inline">{folder.accessLabel}</span>
             <SortButton />
             <ViewToggle view={view} />
@@ -590,13 +599,13 @@ function FileHeaderInner({ id, name, extn, deleted, afterDelete, crumbs, accessL
   ];
   return (
     <header className="flex flex-col gap-2 border-b border-[var(--rule)] px-4 pt-4 pb-2 sm:px-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <FileIcon name={name} extn={extn} className="h-8 w-7" />
-        <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-[var(--ink)]" title={name}>
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <FileIcon name={name} extn={extn} className="h-8 w-7 shrink-0" />
+        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-[var(--ink)] sm:flex-none sm:text-xl" title={name}>
           {name}
         </h1>
         {deleted && <DeletedBadge />}
-        <MenuButton label="Manage" items={manageItems} icon={<GearIcon />} />
+        <MenuButton label="Manage" items={manageItems} icon={<GearIcon />} compact />
         <span className="ml-auto flex items-center gap-2">
           {ops.busy && <span className="text-sm text-[var(--ink-3)]">{ops.busy}</span>}
           {VIEWABLE.has(extOf({ name, extn })) && (

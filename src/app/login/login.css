@@ -184,19 +184,23 @@ body:has(.login-page) { margin: 0; }
 /* Company logos side by side in the topbar, in full colour, separated by a hairline */
 .login-brand-pair {
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* the two taglines sit on one line */
   gap: 1.1em;
   flex: none;
 }
 
-.login-brand-sep { width: 1px; height: 2.4em; background: var(--border-dark); flex: none; }
+.login-brand-sep { width: 1px; height: 2.6em; background: var(--border-dark); flex: none; align-self: center; }
 
+/* Same height rather than same width: the 2MG logo is much wider than it is tall, so a shared
+   width left it looking smaller. */
 .login-brand-logo {
-  width: 5.5em;
-  height: auto;
+  height: 3em;
+  width: auto;
   object-fit: contain;
   flex: none;
 }
+/* Its lettering is larger for its height, so a little shorter reads as the same size. */
+.login-brand-logo--2mg { height: 2.55em; }
 
 /* ── Heading ──────────────────────────────────────────────────────── */
 .login-step-header {
@@ -552,7 +556,8 @@ body:has(.login-page) { margin: 0; }
   .login-hero { padding: 1.5em 1.25em 3.5em; min-height: 100dvh; }
   .login-card { padding: 1.8em 1.4em; }
   .login-hero-topbar { flex-wrap: wrap; row-gap: 0.75em; }
-  .login-brand-logo { width: 4.5em; }
+  .login-brand-logo { height: 2.5em; }
+  .login-brand-logo--2mg { height: 2.1em; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -7,7 +7,7 @@ export function ProfileForm({ name, email }: { name: string; email: string }) {
   const [state, action, pending] = useActionState(updateProfileAction, undefined);
   return (
     <form action={action} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="field">
           <span className="field-label">Name</span>
           <input name="name" defaultValue={name} required maxLength={100} autoComplete="name" className="field-input field-sm" />

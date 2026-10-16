@@ -7,8 +7,8 @@ import "./login.css";
 export const metadata = { title: "Sign in" };
 
 const COMPANY_LOGOS = [
-  { src: "/getmeds-logo.png", alt: "GetMEDS", width: 600, height: 337 },
-  { src: "/2mg-logo.png", alt: "2MG Inc.", width: 400, height: 156 },
+  { src: "/getmeds-logo.png", alt: "GetMEDS", width: 600, height: 337, className: "" },
+  { src: "/2mg-logo.png", alt: "2MG Inc.", width: 400, height: 156, className: "login-brand-logo--2mg" },
 ];
 
 // cacheComponents forbids a bare new Date() during prerender; a daily refresh is plenty for the year.
@@ -31,7 +31,7 @@ export default async function LoginPage() {
               <Fragment key={logo.src}>
                 {i > 0 && <span className="login-brand-sep" aria-hidden="true" />}
                 {/* eslint-disable-next-line @next/next/no-img-element -- small static logos */}
-                <img src={logo.src} width={logo.width} height={logo.height} decoding="async" alt={logo.alt} className="login-brand-logo" />
+                <img src={logo.src} width={logo.width} height={logo.height} decoding="async" alt={logo.alt} className={`login-brand-logo ${logo.className}`} />
               </Fragment>
             ))}
           </div>
@@ -45,7 +45,7 @@ export default async function LoginPage() {
               Company files, <span className="login-hero-title-accent">in one place.</span>
             </h2>
             <p className="login-hero-sub">
-              Browse, upload and share the GetMEDS and 2MG files kept in Zoho WorkDrive — no Zoho account needed.
+              Browse, upload and share the Getmeds and 2MG files kept in Zoho WorkDrive — no Zoho account needed.
             </p>
           </div>
 

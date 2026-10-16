@@ -148,7 +148,7 @@ export function ViewToggle({ view }: { view: FileView }) {
       aria-pressed={view === value}
       title={label}
       aria-label={label}
-      className={`flex h-8 items-center gap-1 px-3.5 transition-colors ${
+      className={`flex h-8 items-center gap-1 px-2.5 transition-colors sm:px-3.5 ${
         view === value ? "bg-[var(--tint-2)] text-[var(--accent-deep)]" : "text-[var(--ink-3)] hover:bg-[var(--tint)] hover:text-[var(--ink)]"
       }`}
     >
@@ -269,14 +269,16 @@ export function ItemList({
   ...h
 }: { rows: Row[]; selectedId: string | null; onSelect: (row: Row) => void } & Handlers) {
   return (
+    // On phones just the name column (who changed it shows under the name); the dates and sizes
+    // come in from the small breakpoint up.
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] border-collapse text-left text-sm text-[var(--ink)]">
+      <table className="w-full table-fixed border-collapse text-left sm:min-w-[560px] text-sm text-[var(--ink)]">
         <thead>
           <tr className="border-b border-[var(--rule)] text-[13px] text-[var(--ink-3)]">
             <SortHeader label="Name" column="name" className="pl-3" />
-            <SortHeader label="Last modified" column="modified" className="w-56" />
-            <SortHeader label="Size" column="size" className="w-32" />
-            <th className="w-12 py-3" />
+            <SortHeader label="Last modified" column="modified" className="hidden w-56 sm:table-cell" />
+            <SortHeader label="Size" column="size" className="hidden w-32 sm:table-cell" />
+            <th className="w-11 py-3 sm:w-12" />
           </tr>
         </thead>
         <tbody>
@@ -298,10 +300,10 @@ export function ItemList({
                   selected ? "bg-[var(--tint-2)]" : "hover:bg-[var(--tint)]"
                 } ${deleted ? "text-[var(--ink-3)]" : ""}`}
               >
-                <td className="py-2.5 pr-4 pl-3">
+                <td className="py-2.5 pr-2 pl-3 sm:pr-4">
                   <span className="flex min-w-0 items-center gap-3">
                     {row.isFolder ? <FolderGlyph id={row.id} /> : <FileIcon name={row.name} extn={row.extn} className="h-7 w-8" />}
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="flex items-center">
                         <Link
                           href={`/files/${row.id}`}
@@ -325,8 +327,8 @@ export function ItemList({
                     </span>
                   </span>
                 </td>
-                <td className="py-2.5 pr-4 whitespace-nowrap text-[var(--ink-3)]">{fmtTime(row.modifiedMs)}</td>
-                <td className="py-2.5 pr-4 whitespace-nowrap text-[var(--ink-3)]">{row.isFolder ? "—" : sizeOf(row)}</td>
+                <td className="hidden py-2.5 pr-4 whitespace-nowrap text-[var(--ink-3)] sm:table-cell">{fmtTime(row.modifiedMs)}</td>
+                <td className="hidden py-2.5 pr-4 whitespace-nowrap text-[var(--ink-3)] sm:table-cell">{row.isFolder ? "—" : sizeOf(row)}</td>
                 <td className="py-2.5 pr-2 text-right">
                   <button
                     aria-label={`Options for ${row.name}`}
